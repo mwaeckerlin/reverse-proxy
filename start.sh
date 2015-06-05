@@ -45,7 +45,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
            listen ${PORT};
            server_name ${linkedservername};
            location ${linkedlocation}/ {
-             include proxy.conf
+             include proxy.conf;
              proxy_pass ${linkedproxy};
              subs_filter "http://${linkedip}:${linkedport}" "http://${linkedservername}${linkedlocation}";
              subs_filter "http://${linkedip}" "http://${linkedservername}${linkedlocation}";
