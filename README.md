@@ -9,10 +9,10 @@ Example:
 
         docker run -d --name test-mysql -e MYSQL_ROOT_PASSWORD=$(pwgen -s 16 1) mysql
         docker run -d --name test-wordpress --link test-mysql:mysql wordpress
-  2. Start any number of othe services ...
+  2. Start any number of other services ...
   3. Start a `forwardproxy`
 
-        docker run -d --name forwardproxy --link test-wordpress:test.mydomain.com -p 80:80 forwardproxy
+        docker run -d --name forwardproxy --link test-wordpress:test.mydomain.com -p 80:80 mwaeckerlin/forwardproxy
   4. Head your browser to http://test.mydomain.co
 
 

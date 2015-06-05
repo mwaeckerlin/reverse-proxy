@@ -1,5 +1,23 @@
 #!/bin/bash -ex
 
+OPT=${1:-"-f"}
+
+# check how to run apache
+apache2ctl=true
+case "${OPT}" in
+    (-f) apache2ctl="apache2ctl -DFOREGROUND";;
+    (-d) apache2ctl="apache2ctl start";;
+    (-n) ;;
+    (-h|--help)
+        echo "OPTIONS:"
+        echo "  -h    show this help"
+        echo "  -f    run in foreground"
+        echo "  -d    run as daemon in background"
+        echo "  -n    don't start apache, only configure"
+        exit;;
+    (*) echo "unknown option $OPT, try --help"; exit 1;;
+esac
+
 # cleanup from previous run
 rm -r /etc/apache2/sites-{available,enabled}/* || true
 
@@ -34,4 +52,4 @@ EOF
 done
 
 # run apache
-apache2ctl -DFOREGROUND
+eval $apache2ctl
