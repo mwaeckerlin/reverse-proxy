@@ -13,7 +13,7 @@ Example:
   3. Start a `forwardproxy`
 
         docker run -d --name forwardproxy --link test-wordpress:test.mydomain.com -p 80:80 forwardproxy
-  4. Head your browser to http://test.mydomain.co
+  4. Head your browser to http://test.mydomain.com
 
 
 Todo: Add SSL-Support with certificates
