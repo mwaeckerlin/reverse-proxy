@@ -20,7 +20,6 @@ case "${OPT}" in
     (*) echo "unknown option $OPT, try --help"; exit 1;;
 esac
 
-if grep -q 
 # cleanup from previous run
 rm -r /etc/nginx/sites-{available,enabled}/* || true
 
