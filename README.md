@@ -1,10 +1,11 @@
 # Docker Image: Virtual Hosts Reverse Proxy
 
 On your computer start any number of services, then start a
-`reverse-proxy` and link to all your docker services. The link alias must
+`mwaeckerlin/reverse-proxy` and link to all your docker services. The link alias must
 be the FQDN, the fully qualified domain name of your service.
 
 Example:
+
   1. Start a wordpress instance (including a volume container): 
 
         docker create --name test-volumes --volume /var/lib/mysql --volume /var/www/html mwaeckerlin/scratch ""

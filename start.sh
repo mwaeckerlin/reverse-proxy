@@ -4,6 +4,7 @@ OPT=${1:-"-f"}
 PORT=80
 
 # check how to run apache
+sed -i '/^daemon off/d' /etc/nginx/nginx.conf
 proxycmd=nginx
 case "${OPT}" in
     (-f) echo "daemon off;" >> /etc/nginx/nginx.conf;;
