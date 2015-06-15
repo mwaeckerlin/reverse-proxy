@@ -43,7 +43,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
     cat > /etc/nginx/sites-available/${site} <<EOF
          server {
            listen ${PORT};
-           server_name ${linkedservername};
+           server_name ${linkedservername} www.${linkedservername};
            location ${linkedlocation}/ {
              include proxy.conf;
              proxy_pass ${linkedproxy};
