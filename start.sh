@@ -82,13 +82,17 @@ EOF
     ln -s /etc/nginx/sites-available/${site} /etc/nginx/sites-enabled/${site}
 done
 # scan through all linked docker containers and add virtual hosts
-for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
+for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
+    if env | egrep -q '^'${name}'_TO_PORT='; then
+        linkedport="$(env | sed -n 's/'${name}'_TO_PORT=//p')"
+    else
+        linkedport="$(env | sed -n 's/'${name}'_PORT_.*_TCP_PORT=//p')"
+    fi
     linkedhostname="$(env | sed -n 's/'${name}'_NAME=.*\///p')"
-    linkedport="$(env | sed -n 's/'${name}'_PORT_.*_TCP_PORT=//p')"
-    linkedip="$(env | sed -n 's/'${name}'_PORT_.*_TCP_ADDR=//p')"
+    linkedip="$(env | sed -n 's/'${name}'_PORT_'${linkedport}'_TCP_ADDR=//p')"
     linkedserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     linkedservername=${linkedserverpath%%/*}
-    if test "${linkedserverpath#*/}" _= "${linkedserverpath}"; then
+    if test "${linkedserverpath#*/}" != "${linkedserverpath}"; then
         linkedlocation=/${linkedserverpath#*/}
     else
         linkedlocation=
@@ -102,12 +106,12 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
     cat > /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
            listen ${PORT};
-           server_name www.${flinkedservername};
-           return 301 \$scheme://${flinkedservername}\$request_uri;
+           server_name www.${linkedservername};
+           return 301 \$scheme://${linkedservername}\$request_uri;
          }
          server {
            listen ${PORT};
-           server_name ${linkedservername} www.${linkedservername};
+           server_name ${linkedservername};
            location ${linkedlocation}/ {
              include proxy.conf;
              proxy_pass ${linkedproxy};
