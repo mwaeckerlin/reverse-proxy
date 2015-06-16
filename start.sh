@@ -28,12 +28,12 @@ rm -r /etc/nginx/sites-{available,enabled}/* || true
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     fromservername=${frompath%%/*}
+    target=$(env | sed -n 's/redirect-'$redirect'=//p')
     if test "${frompath#*/}" != "${frompath}"; then
         cmd="rewrite ^/${frompath#*/}/(.*)$ http://${target}/\$1 redirect"
     else
         cmd="return 301 \$scheme://${target}\$request_uri"
     fi     
-    target=$(env | sed -n 's/redirect-'$redirect'=//p')
     site=${fromservername}${fromlocation//\//_}.conf
     cat > /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
