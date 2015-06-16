@@ -23,6 +23,64 @@ esac
 # cleanup from previous run
 rm -r /etc/nginx/sites-{available,enabled}/* || true
 
+# check for environment variables that are set for explicit redirecting
+# redirect
+for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
+    frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
+    fromservername=${frompath%%/*}
+    if test "${frompath#*/}" != "${frompath}"; then
+        cmd="rewrite ^/${frompath#*/}/(.*)$ http://${target}/\$1 redirect"
+    else
+        cmd="return 301 \$scheme://${target}\$request_uri"
+    fi     
+    target=$(env | sed -n 's/redirect-'$redirect'=//p')
+    site=${fromservername}${fromlocation//\//_}.conf
+    cat > /etc/nginx/sites-available/${site} <<EOF
+         server { # redirect www to non-www
+           listen ${PORT};
+           server_name www.${fromservername};
+           return 301 \$scheme://${fromservername}\$request_uri;
+         }
+         server {
+           listen ${PORT};
+           server_name ${fromservername};
+           ${cmd};
+         }
+EOF
+    cat /etc/nginx/sites-available/${site}
+    ln -s /etc/nginx/sites-available/${site} /etc/nginx/sites-enabled/${site}
+done
+# forward
+for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
+    frompath=$(echo "${forward,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
+    fromservername=${frompath%%/*}
+    if test "${frompath#*/}" != "${frompath}"; then
+        fromlocation=/${frompath#*/}
+    else
+        fromlocation=
+    fi     
+    target=$(env | sed -n 's/forward-'$forward'=//p')
+    site=${fromservername}${fromlocation//\//_}.conf
+    cat > /etc/nginx/sites-available/${site} <<EOF
+         server { # redirect www to non-www
+           listen ${PORT};
+           server_name www.${fromservername};
+           return 301 \$scheme://${fromservername}\$request_uri;
+         }
+         server {
+           listen ${PORT};
+           server_name ${fromservername};
+           location ${fromlocation}/ {
+             include proxy.conf;
+             proxy_pass ${target};
+             subs_filter "http://${target}" "http://${frompath}";
+             subs_filter "${target}" "${frompath}";
+           }
+         }
+EOF
+    cat /etc/nginx/sites-available/${site}
+    ln -s /etc/nginx/sites-available/${site} /etc/nginx/sites-enabled/${site}
+done
 # scan through all linked docker containers and add virtual hosts
 for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
     linkedhostname="$(env | sed -n 's/'${name}'_NAME=.*\///p')"
@@ -30,7 +88,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
     linkedip="$(env | sed -n 's/'${name}'_PORT_.*_TCP_ADDR=//p')"
     linkedserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     linkedservername=${linkedserverpath%%/*}
-    if test "${linkedserverpath#*/}" -ne "${linkedserverpath}"; then
+    if test "${linkedserverpath#*/}" _= "${linkedserverpath}"; then
         linkedlocation=/${linkedserverpath#*/}
     else
         linkedlocation=
@@ -42,6 +100,11 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p'); do
     fi
     site=${linkedhostname}_${linkedservername}_${linkedport}.conf
     cat > /etc/nginx/sites-available/${site} <<EOF
+         server { # redirect www to non-www
+           listen ${PORT};
+           server_name www.${flinkedservername};
+           return 301 \$scheme://${flinkedservername}\$request_uri;
+         }
          server {
            listen ${PORT};
            server_name ${linkedservername} www.${linkedservername};
