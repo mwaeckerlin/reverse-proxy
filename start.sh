@@ -46,7 +46,6 @@ for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
            ${cmd};
          }
 EOF
-    echo "**** ${fromservername} -- /etc/ssl/${fromservername}.crt"
     if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
         cat >> /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
@@ -166,7 +165,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
            }
          }
 EOF
-    if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
+    if test -f /etc/ssl/${linkedservername}.crt -a -f /etc/ssl/${linkedservername}.key; then
         cat >> /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
            listen ${HTTPS_PORT};
