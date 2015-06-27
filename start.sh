@@ -46,6 +46,7 @@ for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
            ${cmd};
          }
 EOF
+    echo "**** ${fromservername} -- /etc/ssl/${fromservername}.crt"
     if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
         cat >> /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
