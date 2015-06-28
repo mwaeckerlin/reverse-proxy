@@ -168,7 +168,7 @@ EOF
     if test -f /etc/ssl/${linkedservername}.crt -a -f /etc/ssl/${linkedservername}.key; then
         cat >> /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
-           listen ${HTTP_PORT};
+           listen ${HTTPS_PORT};
            server_name www.${linkedservername};
            return 301 \$scheme://${linkedservername}\$request_uri;
            ssl on;
@@ -176,7 +176,7 @@ EOF
            ssl_certificate_key /etc/ssl/${linkedservername}.key;
          }
          server {
-           listen ${HTTP_PORT};
+           listen ${HTTPS_PORT};
            server_name ${linkedservername};
            ssl on;
            ssl_certificate /etc/ssl/${linkedservername}.crt;
