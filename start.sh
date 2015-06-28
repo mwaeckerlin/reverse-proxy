@@ -34,34 +34,41 @@ for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
         cmd="return 301 \$scheme://${target}\$request_uri"
     fi     
     site=${fromservername}${fromlocation//\//_}.conf
-    cat > /etc/nginx/sites-available/${site} <<EOF
-         server { # redirect www to non-www
-           listen ${HTTP_PORT};
-           server_name www.${fromservername};
-           return 301 \$scheme://${fromservername}\$request_uri;
-         }
-         server {
+    if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
+        cat >> /etc/nginx/sites-available/${site} <<EOF
+         server { # redirect http to https
            listen ${HTTP_PORT};
            server_name ${fromservername};
+           server_name www.${fromservername};
+           return 301 https://${fromservername}\$request_uri;
+         }
+         server { # redirect www to non-www
+           listen ${HTTPS_PORT};
+           server_name www.${fromservername};
+           return 301 \$scheme://${fromservername}\$request_uri;
+           ssl on;
+           ssl_certificate /etc/ssl/${fromservername}.crt;
+           ssl_certificate_key /etc/ssl/${fromservername}.key;
+         }
+         server {
+           listen ${HTTPS_PORT};
+           server_name ${fromservername};
+           ssl on;
+           ssl_certificate /etc/ssl/${fromservername}.crt;
+           ssl_certificate_key /etc/ssl/${fromservername}.key;
            ${cmd};
          }
 EOF
-    if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
-        cat >> /etc/nginx/sites-available/${site} <<EOF
+    else
+        cat > /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name www.${fromservername};
            return 301 \$scheme://${fromservername}\$request_uri;
-           ssl on;
-           ssl_certificate /etc/ssl/${fromservername}.crt;
-           ssl_certificate_key /etc/ssl/${fromservername}.key;
          }
          server {
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name ${fromservername};
-           ssl on;
-           ssl_certificate /etc/ssl/${fromservername}.crt;
-           ssl_certificate_key /etc/ssl/${fromservername}.key;
            ${cmd};
          }
 EOF
@@ -80,15 +87,28 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     fi     
     target=$(env | sed -n 's/forward-'$forward'=//p')
     site=${fromservername}${fromlocation//\//_}.conf
-    cat > /etc/nginx/sites-available/${site} <<EOF
-         server { # redirect www to non-www
-           listen ${HTTP_PORT};
-           server_name www.${fromservername};
-           return 301 \$scheme://${fromservername}\$request_uri;
-         }
-         server {
+    if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
+        cat >> /etc/nginx/sites-available/${site} <<EOF
+         server { # redirect http to https
            listen ${HTTP_PORT};
            server_name ${fromservername};
+           server_name www.${fromservername};
+           return 301 https://${fromservername}\$request_uri;
+         }
+         server { # redirect www to non-www
+           listen ${HTTPS_PORT};
+           server_name www.${fromservername};
+           return 301 \$scheme://${fromservername}\$request_uri;
+           ssl on;
+           ssl_certificate /etc/ssl/${fromservername}.crt;
+           ssl_certificate_key /etc/ssl/${fromservername}.key;
+         }
+         server {
+           listen ${HTTPS_PORT};
+           server_name ${fromservername};
+           ssl on;
+           ssl_certificate /etc/ssl/${fromservername}.crt;
+           ssl_certificate_key /etc/ssl/${fromservername}.key;
            location ${fromlocation}/ {
              include proxy.conf;
              proxy_pass ${target};
@@ -97,22 +117,16 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
            }
          }
 EOF
-    if test -f /etc/ssl/${fromservername}.crt -a -f /etc/ssl/${fromservername}.key; then
-        cat >> /etc/nginx/sites-available/${site} <<EOF
+    else
+        cat > /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name www.${fromservername};
            return 301 \$scheme://${fromservername}\$request_uri;
-           ssl on;
-           ssl_certificate /etc/ssl/${fromservername}.crt;
-           ssl_certificate_key /etc/ssl/${fromservername}.key;
          }
          server {
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name ${fromservername};
-           ssl on;
-           ssl_certificate /etc/ssl/${fromservername}.crt;
-           ssl_certificate_key /etc/ssl/${fromservername}.key;
            location ${fromlocation}/ {
              include proxy.conf;
              proxy_pass ${target};
@@ -146,15 +160,28 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
         linkedproxy="http://${linkedip}:${linkedport}"
     fi
     site=${linkedservername}_${linkedport}.conf
-    cat > /etc/nginx/sites-available/${site} <<EOF
-         server { # redirect www to non-www
-           listen ${HTTP_PORT};
-           server_name www.${linkedservername};
-           return 301 \$scheme://${linkedservername}\$request_uri;
-         }
-         server {
+    if test -f /etc/ssl/${linkedservername}.crt -a -f /etc/ssl/${linkedservername}.key; then
+        cat >> /etc/nginx/sites-available/${site} <<EOF
+         server { #  # redirect http to https
            listen ${HTTP_PORT};
            server_name ${linkedservername};
+           server_name www.${linkedservername};
+           return 301 https://${linkedservername}\$request_uri;
+         }
+         server { # redirect www to non-www
+           listen ${HTTPS_PORT};
+           server_name www.${linkedservername};
+           return 301 \$scheme://${linkedservername}\$request_uri;
+           ssl on;
+           ssl_certificate /etc/ssl/${linkedservername}.crt;
+           ssl_certificate_key /etc/ssl/${linkedservername}.key;
+         }
+         server {
+           listen ${HTTPS_PORT};
+           server_name ${linkedservername};
+           ssl on;
+           ssl_certificate /etc/ssl/${linkedservername}.crt;
+           ssl_certificate_key /etc/ssl/${linkedservername}.key;
            location ${linkedlocation}/ {
              include proxy.conf;
              proxy_pass ${linkedproxy};
@@ -165,22 +192,16 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
            }
          }
 EOF
-    if test -f /etc/ssl/${linkedservername}.crt -a -f /etc/ssl/${linkedservername}.key; then
-        cat >> /etc/nginx/sites-available/${site} <<EOF
+    else
+        cat > /etc/nginx/sites-available/${site} <<EOF
          server { # redirect www to non-www
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name www.${linkedservername};
            return 301 \$scheme://${linkedservername}\$request_uri;
-           ssl on;
-           ssl_certificate /etc/ssl/${linkedservername}.crt;
-           ssl_certificate_key /etc/ssl/${linkedservername}.key;
          }
          server {
-           listen ${HTTPS_PORT};
+           listen ${HTTP_PORT};
            server_name ${linkedservername};
-           ssl on;
-           ssl_certificate /etc/ssl/${linkedservername}.crt;
-           ssl_certificate_key /etc/ssl/${linkedservername}.key;
            location ${linkedlocation}/ {
              include proxy.conf;
              proxy_pass ${linkedproxy};
