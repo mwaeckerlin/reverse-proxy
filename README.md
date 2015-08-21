@@ -22,6 +22,8 @@ For special characters use hexadecimal ASCII code, as in URL encoding, so if you
 
 ## SSL Certificates
 
+Add a volume with your certificates in `/etc/ssl`, two files per URL, the certificate and the key, named <url>.crt and <url>.key. If found, it is automatically configured and http on port 80 is redirected to https on port 443.
+
 ## The Dummy-www-Prefix
 
 Rules to redirect the dummy-www-prefix to the host without prefix are automatically added, so don't prepend `www.` to your hostnames.
