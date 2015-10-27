@@ -90,10 +90,10 @@ for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     server=${frompath%%/*}
     target=$(env | sed -n 's/redirect-'$redirect'=//p')
     if test "${frompath#*/}" != "${frompath}"; then
-        cmd="rewrite ^/${frompath#*/}/(.*)$ http://${target}/\$1 redirect;"
+        cmd="rewrite ^/${frompath#*/}/(.*)$ \$scheme://${target}/\$1 redirect;"
     else
-        cmd="return 301 \$scheme://${target}\$request_uri;"
-    fi     
+        cmd="rewrite ^/$ \$scheme://${target} redirect;"
+    fi
     configEntry "${server}" "${cmd}"
 done
 
