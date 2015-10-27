@@ -32,15 +32,21 @@ Rules to redirect the dummy-www-prefix to the host without prefix are automatica
 
 Example:
 
-  1. Start a wordpress instance (including a volume container): 
+  1. Start a wordpress instance (including a volume container):
 
+        ```bash
         docker run -d --name test-volumes --volume /var/lib/mysql --volume /var/www/html ubuntu sleep infinity
         docker run -d --volumes-from test-volumes --name test-mysql -e MYSQL_ROOT_PASSWORD=$(pwgen -s 16 1) mysql
         docker run -d --volumes-from test-volumes --name test-wordpress --link test-mysql:mysql wordpress
+          ```
   2. Start any number of other services ...
   3. Start a `reverse-proxy`: 
 
-        docker run -d --restart=always --name reverse-proxy --link test-wordpress:test.mydomain.com -p 80:80 mwaeckerlin/reverse-proxy
+        ```bash
+        docker run -d --restart=always --name reverse-proxy \
+          --link test-wordpress:test.mydomain.com \
+          -p 80:80 mwaeckerlin/reverse-proxy
+        ```
   4. Head your browser to http://test.mydomain.com
 
 Other Example:
@@ -56,14 +62,17 @@ Other Example:
     2. There should be a forwarding from `https://host.com/dokuwiki` to local container `dokuwiki`
     3. There should be a forwarding from `https://host.com/jenkins` to container `jenkins` that is exposed on port `8080` on `hostb`
   3. Configuration
-    1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12` 
+    1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12`: 
 
+          ```bash
           openssl pkcs12 -in host.com.p12 -nocerts -out host.com.pem
           openssl rsa -in host.com.pem -out host.com.key
           openssl pkcs12 -in host.com.p12 -nokeys -out host.com.crt
           rm host.com.pem
+          ```
     2. Create a docker volume containing the keys: 
 
+          ```bash
           cat > Dockerfile <<EOF
           FROM mwaeckerlin/reverse-proxy
           VOLUME /etc/ssl
@@ -73,8 +82,10 @@ Other Example:
           EOF
           docker build --rm --force-rm -t reverse-proxy-volume .
           rm Dockerfile
-     3. Instanciate the volume and the reverse-proxy container 
+          ```
+    3. Instanciate the volume and the reverse-proxy container 
 
+          ```bash
           docker run -d --name reverse-proxy-volume reverse-proxy-volume
           docker run -d --name reverse-proxy \
             --volumes-from reverse-proxy-volume \
@@ -82,3 +93,4 @@ Other Example:
             --link dokuwiki:host.com/dokuwiki \
             -e forward-host.com%2fjenkins=hostb:8080 \
             -p 80:80 -p 443:443 mwaeckerlin/reverse-proxy
+          ```
