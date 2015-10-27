@@ -42,3 +42,44 @@ Example:
 
         docker run -d --restart=always --name reverse-proxy --link test-wordpress:test.mydomain.com -p 80:80 mwaeckerlin/reverse-proxy
   4. Head your browser to http://test.mydomain.com
+
+Other Example:
+
+  1. Situation:
+    1. `hosta` in local network is public visible through `https://host.com`
+    2. There is a `mwaeckerlin/dokuwiki` in a docker container on `hosta`
+    3. There is a `mwaeckerlin/jenkins` running on `hostb` with opened port `8080`
+    4. `https://host.com` is public in internet
+    5. There is a SSL-certificate (in P12 format) for `host.com` named `host.com.p12`
+  2. Requirements:
+    1. There should be a default redirection from `https://host.com` to `https://host.com/dokuwiki`
+    2. There should be a forwarding from `https://host.com/dokuwiki` to local container `dokuwiki`
+    3. There should be a forwarding from `https://host.com/jenkins` to container `jenkins` that is exposed on port `8080` on `hostb`
+  3. Configuration
+    1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12`
+
+        openssl pkcs12 -in host.com.p12 -nocerts -out host.com.pem
+        openssl rsa -in host.com.pem -out host.com.key
+        openssl pkcs12 -in host.com.p12 -nokeys -out host.com.crt
+        rm host.com.pem
+    2. Create a docker volume containing the keys:
+
+        cat > Dockerfile <<EOF
+        FROM mwaeckerlin/reverse-proxy
+        VOLUME /etc/ssl
+        ADD host.com.crt /etc/ssl/host.com.crt
+        ADD host.com.key /etc/ssl/host.com.key
+        CMD sleep infinity
+        EOF
+        docker build --rm --force-rm -t reverse-proxy-volume .
+        rm Dockerfile
+     3. Instanciate the volume and the reverse-proxy container
+
+        docker run -d --name reverse-proxy-volume reverse-proxy-volume
+        docker run -d --name reverse-proxy \
+          --volumes-from reverse-proxy-volume \
+          -e redirect-host.com=host.com%2fdokuwiki \
+          --link dokuwiki:host.com%2fdokuwiki \
+          -e forward-host.com%2fjenkins=hostb \
+          -d HOST.COM%2FJENKINS_TO_PORT=8080 \
+          -p 80:80 -p 443:443 mwaeckerlin/reverse-proxy
