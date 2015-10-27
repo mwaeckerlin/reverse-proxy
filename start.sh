@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 OPT=${1:-"-f"}
 
@@ -27,11 +27,11 @@ declare -A conf
 function configEntry() {
     local server=$1
     local cmd=$2
-    conf[${server}]+="  $cmd
-"
     echo "********** $server"
     echo "$cmd"
     echo "********************"
+    conf["${server}"]+="  $cmd
+"
 }
 
 function writeConfigs() {
