@@ -38,7 +38,7 @@ Example:
         docker run -d --volumes-from test-volumes --name test-mysql -e MYSQL_ROOT_PASSWORD=$(pwgen -s 16 1) mysql
         docker run -d --volumes-from test-volumes --name test-wordpress --link test-mysql:mysql wordpress
   2. Start any number of other services ...
-  3. Start a `reverse-proxy`
+  3. Start a `reverse-proxy`: 
 
         docker run -d --restart=always --name reverse-proxy --link test-wordpress:test.mydomain.com -p 80:80 mwaeckerlin/reverse-proxy
   4. Head your browser to http://test.mydomain.com
@@ -58,27 +58,27 @@ Other Example:
   3. Configuration
     1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12` 
 
-        openssl pkcs12 -in host.com.p12 -nocerts -out host.com.pem
-        openssl rsa -in host.com.pem -out host.com.key
-        openssl pkcs12 -in host.com.p12 -nokeys -out host.com.crt
-        rm host.com.pem
+          openssl pkcs12 -in host.com.p12 -nocerts -out host.com.pem
+          openssl rsa -in host.com.pem -out host.com.key
+          openssl pkcs12 -in host.com.p12 -nokeys -out host.com.crt
+          rm host.com.pem
     2. Create a docker volume containing the keys: 
 
-        cat > Dockerfile <<EOF
-        FROM mwaeckerlin/reverse-proxy
-        VOLUME /etc/ssl
-        ADD host.com.crt /etc/ssl/host.com.crt
-        ADD host.com.key /etc/ssl/host.com.key
-        CMD sleep infinity
-        EOF
-        docker build --rm --force-rm -t reverse-proxy-volume .
-        rm Dockerfile
+          cat > Dockerfile <<EOF
+          FROM mwaeckerlin/reverse-proxy
+          VOLUME /etc/ssl
+          ADD host.com.crt /etc/ssl/host.com.crt
+          ADD host.com.key /etc/ssl/host.com.key
+          CMD sleep infinity
+          EOF
+          docker build --rm --force-rm -t reverse-proxy-volume .
+          rm Dockerfile
      3. Instanciate the volume and the reverse-proxy container 
 
-        docker run -d --name reverse-proxy-volume reverse-proxy-volume
-        docker run -d --name reverse-proxy \
-          --volumes-from reverse-proxy-volume \
-          -e redirect-host.com=host.com/dokuwiki \
-          --link dokuwiki:host.com/dokuwiki \
-          -e forward-host.com%2fjenkins=hostb:8080 \
-          -p 80:80 -p 443:443 mwaeckerlin/reverse-proxy
+          docker run -d --name reverse-proxy-volume reverse-proxy-volume
+          docker run -d --name reverse-proxy \
+            --volumes-from reverse-proxy-volume \
+            -e redirect-host.com=host.com/dokuwiki \
+            --link dokuwiki:host.com/dokuwiki \
+            -e forward-host.com%2fjenkins=hostb:8080 \
+            -p 80:80 -p 443:443 mwaeckerlin/reverse-proxy
