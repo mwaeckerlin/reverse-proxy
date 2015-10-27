@@ -18,7 +18,7 @@ In addition, you can add environment variables that start with `redirect-` or `f
 
         docker run [...] -e redirect-old-host.com=new-host.org mwaeckerlin/reverse-proxy
 
-For special characters use hexadecimal ASCII code, as in URL encoding, so if you need to append a path, use `%2f` instead of slash `/` in the path.
+For special characters in the variable name (not in the value) use hexadecimal ASCII code, as in URL encoding, so if you need to append a path, use `%2f` instead of slash `/` in the path.
 
 ## SSL Certificates
 
@@ -56,13 +56,13 @@ Other Example:
     2. There should be a forwarding from `https://host.com/dokuwiki` to local container `dokuwiki`
     3. There should be a forwarding from `https://host.com/jenkins` to container `jenkins` that is exposed on port `8080` on `hostb`
   3. Configuration
-    1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12`
+    1. Create `host.com.crt` and an unencrypted `host.com.key` from `host.com.p12` 
 
         openssl pkcs12 -in host.com.p12 -nocerts -out host.com.pem
         openssl rsa -in host.com.pem -out host.com.key
         openssl pkcs12 -in host.com.p12 -nokeys -out host.com.crt
         rm host.com.pem
-    2. Create a docker volume containing the keys:
+    2. Create a docker volume containing the keys: 
 
         cat > Dockerfile <<EOF
         FROM mwaeckerlin/reverse-proxy
@@ -73,13 +73,12 @@ Other Example:
         EOF
         docker build --rm --force-rm -t reverse-proxy-volume .
         rm Dockerfile
-     3. Instanciate the volume and the reverse-proxy container
+     3. Instanciate the volume and the reverse-proxy container 
 
         docker run -d --name reverse-proxy-volume reverse-proxy-volume
         docker run -d --name reverse-proxy \
           --volumes-from reverse-proxy-volume \
-          -e redirect-host.com=host.com%2fdokuwiki \
-          --link dokuwiki:host.com%2fdokuwiki \
-          -e forward-host.com%2fjenkins=hostb \
-          -d HOST.COM%2FJENKINS_TO_PORT=8080 \
+          -e redirect-host.com=host.com/dokuwiki \
+          --link dokuwiki:host.com/dokuwiki \
+          -e forward-host.com%2fjenkins=hostb:8080 \
           -p 80:80 -p 443:443 mwaeckerlin/reverse-proxy
