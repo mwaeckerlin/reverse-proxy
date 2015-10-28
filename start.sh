@@ -19,6 +19,10 @@ case "${OPT}" in
     (*) echo "unknown option $OPT, try --help"; exit 1;;
 esac
 
+# set log level
+sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL}"';,g' \
+    -i /etc/nginx/nginx.conf
+
 # cleanup from previous run
 rm -r /etc/nginx/sites-{available,enabled}/* || true
 
@@ -109,7 +113,8 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     target=$(env | sed -n 's/forward-'$forward'=//p')
     cmd="location ${fromlocation}/ {
     include proxy.conf;
-    proxy_pass http://${target};
+    proxy_pass http://${target}/;
+    proxy_redirect http://${target}/ ${fromlocation}/;
     subs_filter \"http://${target}\" \"http://${frompath}\";
     subs_filter \"${target}\" \"${frompath}\";
   }"
@@ -137,13 +142,28 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
         fromproxy="http://${fromip}:${fromport}"
     fi
     cmd="location ${fromlocation}/ {
-                  include proxy.conf;
-                  proxy_pass ${fromproxy};
-                  subs_filter \"http://${fromip}:${fromport}\" \"http://${server}${fromlocation}\";
-                  subs_filter \"http://${fromip}\" \"http://${server}${fromlocation}\";
-                  subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation}\";
-             subs_filter \"${fromip}\" \"${server}${fromlocation}\";
-           }"
+    include proxy.conf;
+    if ( \$host != '${server}' ) {
+      rewrite ^/(.*)$ http://${server}/\$1 permanent;
+    }
+    proxy_cookie_domain ${fromip} ${server};
+    proxy_cookie_path / ${fromlocation}/;
+    proxy_pass ${fromproxy}/;
+    proxy_redirect \$scheme://${server}${fromlocation} \$scheme://${server}${fromlocation};
+    proxy_redirect \$scheme://${server} \$scheme://${server}${fromlocation};
+    proxy_redirect /${fromlocation} \$scheme://${server}${fromlocation};
+    proxy_redirect / \$scheme://${server}${fromlocation};
+    proxy_redirect / /;
+    subs_filter \"\$scheme://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"\$scheme://${fromip}\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation}\";
+    subs_filter \"${fromip}\" \"${server}${fromlocation}\";"
+    if test -n "${fromlocation}"; then
+        cmd+="
+    subs_filter \"(src|href|action) *= *\\\"/\" \"\$1=\\\"${fromlocation}/\" ir;"
+    fi
+    cmd+="
+  }"
     configEntry "${server}" "${cmd}"
 done
 
