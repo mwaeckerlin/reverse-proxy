@@ -115,7 +115,7 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     include proxy.conf;
     proxy_pass http://${target}/;
     proxy_redirect http://${target}/ ${fromlocation}/;
-    subs_filter \"http://${target}\" \"http://${frompath}\";
+    subs_filter \"http://${target}\" \"\$scheme://${frompath}\";
     subs_filter \"${target}\" \"${frompath}\";
   }"
     configEntry "${server}" "${cmd}"
@@ -143,9 +143,9 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     fi
     cmd="location ${fromlocation}/ {
     include proxy.conf;
-    if ( \$host != '${server}' ) {
-      rewrite ^/(.*)$ http://${server}/\$1 permanent;
-    }
+    #if ( \$host != '${server}' ) {
+    #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation}/\$1 permanent;
+    #}
     proxy_cookie_domain ${fromip} ${server};
     proxy_cookie_path / ${fromlocation}/;
     proxy_pass ${fromproxy}/;
@@ -154,8 +154,8 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     proxy_redirect /${fromlocation} \$scheme://${server}${fromlocation};
     proxy_redirect / \$scheme://${server}${fromlocation};
     proxy_redirect / /;
-    subs_filter \"\$scheme://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
-    subs_filter \"\$scheme://${fromip}\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation}\";
     subs_filter \"${fromip}\" \"${server}${fromlocation}\";"
     if test -n "${fromlocation}"; then
