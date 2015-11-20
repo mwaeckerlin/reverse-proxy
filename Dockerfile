@@ -6,6 +6,9 @@ ADD start.sh /start.sh
 
 RUN apt-get -y update
 RUN apt-get -y install nginx nginx-extras
+RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
+RUN ln -sf /dev/stdout /var/log/nginx/access.log
+RUN ln -sf /dev/stderr /var/log/nginx/error.log
 
 # DEBUG_LEVEL is one of: debug, info, notice, warn, error, crit, alert, emerg
 # logs are written to /var/log/nginx/error.log and /var/log/nginx/access.log
