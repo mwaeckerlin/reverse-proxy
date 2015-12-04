@@ -44,6 +44,22 @@ function writeConfigs() {
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
+        if test "${LETSENCRYPT}" = "always" -o \( \( ! -f /etc/ssl/private/${server}.crt -o ! -f /etc/ssl/private/${server}.key; \) -a "${LETSENCRYPT}" = "missing" \); then
+            mail=""
+            if test -n "${MAILCONTACT}"; then
+                if [[ "${MAILCONTACT}" =~ @ ]]; then
+                    mail="-m ${MAILCONTACT}"
+                else
+                    mail="-m ${MAILCONTACT}@${server}"
+                fi
+            fi
+            echo > /etc/cron.monthly/renew-certificates-${server//[^a-zA-Z0-0]/-} <<EOF
+#! /bin/bash
+/renew.sh ${LETSENCRYPT_OPTIONS} ${mail} -d ${server}
+EOF
+            chmod +x /etc/cron.monthly/renew-certificates-${server//[^a-zA-Z0-0]/-}
+            /renew.sh ${LETSENCRYPT_OPTIONS} ${mail} -d ${server}
+        fi
         if test -f /etc/ssl/private/${server}.crt -a -f /etc/ssl/private/${server}.key; then
             # write SSL configuration
             cat >> "${target}" <<EOF
@@ -168,6 +184,11 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
 done
 
 writeConfigs;
+
+# run crontab
+if test "${LETSENCRYPT}" != "never"; then
+    cron -L7
+fi
 
 # run webserver
 eval $proxycmd
