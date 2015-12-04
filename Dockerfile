@@ -15,6 +15,6 @@ RUN ln -sf /dev/stderr /var/log/nginx/error.log
 ENV LOG_LEVEL ""
 ENV HTTP_PORT 80
 ENV HTTPS_PORT 443
-VOLUME /etc/ssl
+VOLUME /etc/ssl/private
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
 CMD /start.sh

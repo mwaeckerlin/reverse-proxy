@@ -44,7 +44,7 @@ function writeConfigs() {
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
-        if test -f /etc/ssl/${server}.crt -a -f /etc/ssl/${server}.key; then
+        if test -f /etc/ssl/private/${server}.crt -a -f /etc/ssl/private/${server}.key; then
             # write SSL configuration
             cat >> "${target}" <<EOF
 server { # redirect http to https
@@ -58,15 +58,15 @@ server { # redirect www to non-www
   server_name www.${server};
   return 301 \$scheme://${server}\$request_uri;
   ssl on;
-  ssl_certificate /etc/ssl/${server}.crt;
-  ssl_certificate_key /etc/ssl/${server}.key;
+  ssl_certificate /etc/ssl/private/${server}.crt;
+  ssl_certificate_key /etc/ssl/private/${server}.key;
 }
 server {
   listen ${HTTPS_PORT};
   server_name ${server};
   ssl on;
-  ssl_certificate /etc/ssl/${server}.crt;
-  ssl_certificate_key /etc/ssl/${server}.key;
+  ssl_certificate /etc/ssl/private/${server}.crt;
+  ssl_certificate_key /etc/ssl/private/${server}.key;
 ${conf[${server}]}}
 EOF
         else
