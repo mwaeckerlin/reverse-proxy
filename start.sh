@@ -133,6 +133,8 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     proxy_redirect http://${target}/ ${fromlocation}/;
     subs_filter \"http://${target}\" \"\$scheme://${frompath}\";
     subs_filter \"${target}\" \"${frompath}\";
+    subs_filter \"http://localhost\" \"\$scheme://${frompath}\";
+    subs_filter \"localhost\" \"${frompath}\";
   }"
     configEntry "${server}" "${cmd}"
 done
@@ -174,6 +176,10 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation}\";
     subs_filter \"${fromip}\" \"${server}${fromlocation}\";"
+    subs_filter \"http://localhost:${fromport}\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"http://localhost\" \"\$scheme://${server}${fromlocation}\";
+    subs_filter \"localhost:${fromport}\" \"${server}${fromlocation}\";
+    subs_filter \"localhost\" \"${server}${fromlocation}\";"
     if test -n "${fromlocation}"; then
         cmd+="
     subs_filter \"(src|href|action) *= *\\\"/\" \"\$1=\\\"${fromlocation}/\" ir;"
