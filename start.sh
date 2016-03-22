@@ -172,7 +172,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     proxy_redirect /${fromlocation} \$scheme://${server}${fromlocation};
     proxy_redirect / \$scheme://${server}${fromlocation};
     proxy_redirect / /;"
-    if !(env | grep -q "${name}_BASEPATH="); then
+    if !(env | grep -q "${name}_ENV_BASEPATH="); then
         cmd+="
     subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation}\";
