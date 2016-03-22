@@ -164,8 +164,12 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     #if ( \$host != '${server}' ) {
     #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation}/\$1 permanent;
     #}
-    proxy_cookie_domain ${fromip} ${server};
-    proxy_cookie_path / ${fromlocation}/;
+    proxy_cookie_domain ${fromip} ${server};"
+    if !(env | grep -q "${name}_ENV_BASEPATH="); then
+        cmd+="
+    proxy_cookie_path / ${fromlocation}/;"
+    fi
+    cmd+="
     proxy_pass ${fromproxy}/;
     proxy_redirect \$scheme://${server}${fromlocation} \$scheme://${server}${fromlocation};
     proxy_redirect \$scheme://${server} \$scheme://${server}${fromlocation};
