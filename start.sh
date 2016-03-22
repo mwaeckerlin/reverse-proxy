@@ -175,7 +175,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation}\";
-    subs_filter \"${fromip}\" \"${server}${fromlocation}\";"
+    subs_filter \"${fromip}\" \"${server}${fromlocation}\";
     subs_filter \"http://localhost:${fromport}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"http://localhost\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"localhost:${fromport}\" \"${server}${fromlocation}\";
