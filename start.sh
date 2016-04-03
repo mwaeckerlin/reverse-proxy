@@ -141,6 +141,11 @@ done
 
 # scan through all linked docker containers and add virtual hosts
 for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
+    if env | egrep -q '^'${name}'_ENV_BASEPATH='; then
+        frombase="$(env | sed -n 's/'${name}'_ENV_BASEPATH=//p')"
+    else
+        frombase=""
+    fi
     if env | egrep -q '^'${name}'_TO_PORT='; then
         fromport="$(env | sed -n 's/'${name}'_TO_PORT=//p')"
     else
@@ -165,18 +170,18 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation}/\$1 permanent;
     #}
     proxy_cookie_domain ${fromip} ${server};"
-    if !(env | grep -q "${name}_ENV_BASEPATH="); then
+    if test -z "$frombase"; then
         cmd+="
     proxy_cookie_path / ${fromlocation}/;"
     fi
     cmd+="
-    proxy_pass ${fromproxy}/;
+    proxy_pass ${fromproxy}${frombase}/;
     proxy_redirect \$scheme://${server}${fromlocation} \$scheme://${server}${fromlocation};
     proxy_redirect \$scheme://${server} \$scheme://${server}${fromlocation};
     proxy_redirect /${fromlocation} \$scheme://${server}${fromlocation};
     proxy_redirect / \$scheme://${server}${fromlocation};
     proxy_redirect / /;"
-    if !(env | grep -q "${name}_ENV_BASEPATH="); then
+    if test -z "$frombase"; then
         cmd+="
     subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation}\";
     subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation}\";
