@@ -167,15 +167,12 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     cmd="location ${fromlocation}/ {
     include proxy.conf;
     set \$fixed_destination \$http_destination;
-    if ( \$http_destination ~* ^http://([^/]*)$frombase(.*)\$ ) {
-      set \$fixed_destination http://\$1\$2;
-    }
-    if ( \$http_destination ~* ^https://([^/]*)$frombase(.*)\$ ) {
-      set \$fixed_destination http://\$1\$2;
+    if ( \$http_destination ~* ^https(.*)\$ ) {
+      set \$fixed_destination http\$1;
     }
     proxy_set_header Destination \$fixed_destination;
     if (\$request_method ~ ^COPY\$) {
-      rewrite $frombase/(.*) /\$1 break;
+      rewrite $frombase/(.*) $frombase/\$1 break;
     }
     #if ( \$host != '${server}' ) {
     #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation}/\$1 permanent;
