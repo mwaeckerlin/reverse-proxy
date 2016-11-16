@@ -104,6 +104,10 @@ EOF
     done
 }
 
+################################################################################################
+## Main ########################################################################################
+################################################################################################
+
 # check for environment variables that are set for explicit redirecting
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
@@ -215,6 +219,12 @@ writeConfigs;
 if test "${LETSENCRYPT}" != "never"; then
     cron -L7
 fi
+
+# fix logging
+! test -e /var/log/nginx/access.log || rm /var/log/nginx/access.log
+! test -e /var/log/nginx/error.log || rm /var/log/nginx/error.log
+ln -sf /proc/$$/fd/1 /var/log/nginx/access.log
+ln -sf /proc/$$/fd/2 /var/log/nginx/error.log
 
 # run webserver
 eval $proxycmd
