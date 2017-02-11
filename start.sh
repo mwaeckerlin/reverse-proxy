@@ -112,7 +112,7 @@ EOF
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     server=${frompath%%/*}
-    target=$(env | sed -n 's/redirect-'$redirect'=//p')
+    target=$(env | sed -n 's/redirect-'${redirect//\//\\/}'=//p')
     if test "${frompath#*/}" != "${frompath}"; then
         cmd="rewrite ^/${frompath#*/}/(.*)$ \$scheme://${target}/\$1 redirect;"
     else
@@ -130,7 +130,7 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     else
         fromlocation=
     fi     
-    target=$(env | sed -n 's/forward-'$forward'=//p')
+    target=$(env | sed -n 's/forward-'${forward//\//\\/}'=//p')
     cmd="location ${fromlocation}/ {
     include proxy.conf;
     proxy_pass http://${target}/;
@@ -146,16 +146,16 @@ done
 # scan through all linked docker containers and add virtual hosts
 for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     if env | egrep -q '^'${name}'_ENV_BASEPATH='; then
-        frombase="$(env | sed -n 's/'${name}'_ENV_BASEPATH=//p')"
+        frombase="$(env | sed -n 's/'${name//\//\\/}'_ENV_BASEPATH=//p')"
     else
         frombase=""
     fi
     if env | egrep -q '^'${name}'_TO_PORT='; then
-        fromport="$(env | sed -n 's/'${name}'_TO_PORT=//p')"
+        fromport="$(env | sed -n 's/'${name//\//\\/}'_TO_PORT=//p')"
     else
-        fromport="$(env | sed -n 's/'${name}'_PORT_.*_TCP_PORT=//p')"
+        fromport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p')"
     fi
-    fromip="$(env | sed -n 's/'${name}'_PORT_'${fromport}'_TCP_ADDR=//p')"
+    fromip="$(env | sed -n 's/'${name//\//\\/}'_PORT_'${fromport//\//\\/}'_TCP_ADDR=//p')"
     fromserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     server=${fromserverpath%%/*}
     if test "${fromserverpath#*/}" != "${fromserverpath}"; then
