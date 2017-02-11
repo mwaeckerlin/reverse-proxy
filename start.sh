@@ -44,7 +44,7 @@ function writeConfigs() {
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
-        if test "${LETSENCRYPT}" = "always" -o \( \( ! -f /etc/ssl/private/${server}.crt -o ! -f /etc/ssl/private/${server}.key; \) -a "${LETSENCRYPT}" = "missing" \); then
+        if test "${LETSENCRYPT}" = "always" -o \( \( ! -f /etc/ssl/private/${server}.crt -o ! -f /etc/ssl/private/${server}.key \) -a "${LETSENCRYPT}" = "missing" \); then
             mail=""
             if test -n "${MAILCONTACT}"; then
                 if [[ "${MAILCONTACT}" =~ @ ]]; then
@@ -223,8 +223,8 @@ fi
 # fix logging
 ! test -e /var/log/nginx/access.log || rm /var/log/nginx/access.log
 ! test -e /var/log/nginx/error.log || rm /var/log/nginx/error.log
-ln -sf /proc/$$/fd/1 /var/log/nginx/access.log
-ln -sf /proc/$$/fd/2 /var/log/nginx/error.log
+ln -sf /proc/1/fd/1 /var/log/nginx/access.log
+ln -sf /proc/1/fd/2 /var/log/nginx/error.log
 
 # run webserver
 eval $proxycmd
