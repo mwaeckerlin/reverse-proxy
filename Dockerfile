@@ -31,4 +31,5 @@ ENV LDAP_BIND_PASS ""
 ENV LDAP_REALM "Restricted"
 VOLUME /etc/ssl/private
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
-CMD /start.sh
+ENTRYPOINT ["/start.sh"]
+
