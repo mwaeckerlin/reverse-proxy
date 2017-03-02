@@ -153,7 +153,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     if env | egrep -q '^'${name}'_TO_PORT='; then
         fromport="$(env | sed -n 's/'${name//\//\\/}'_TO_PORT=//p')"
     else
-        fromport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p')"
+        fromport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p' | head -1)"
     fi
     fromip="$(env | sed -n 's/'${name//\//\\/}'_PORT_'${fromport//\//\\/}'_TCP_ADDR=//p')"
     fromserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
