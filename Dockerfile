@@ -32,4 +32,3 @@ ENV LDAP_REALM "Restricted"
 VOLUME /etc/ssl/private
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
 ENTRYPOINT ["/start.sh"]
-

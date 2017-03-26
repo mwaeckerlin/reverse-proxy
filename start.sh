@@ -61,6 +61,7 @@ EOF
             /renew.sh ${LETSENCRYPT_OPTIONS} ${mail} -d ${server}
         fi
         if test -f /etc/ssl/private/${server}.crt -a -f /etc/ssl/private/${server}.key; then
+            echo "    - server ${server} supports SSL"
             # write SSL configuration
             cat >> "${target}" <<EOF
 server { # redirect http to https
@@ -86,6 +87,7 @@ server {
 ${conf[${server}]}}
 EOF
         else
+            echo "    - no SSL support for server ${server}"
             cat > "${target}" <<EOF
 server { # redirect www to non-www
   listen ${HTTP_PORT};
