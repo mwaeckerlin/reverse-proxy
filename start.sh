@@ -60,9 +60,7 @@ function writeConfigs() {
                     mail="-m ${MAILCONTACT}@${server}"
                 fi
             fi
-            if test -e "${certfile}" -a -e "${keyfile}"; then
-                certbot renew -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
-            else
+            if ! test -e "${certfile}" -a -e "${keyfile}"; then
                 certbot certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
             fi
             if ! test -e "${certfile}" -a -e "${keyfile}"; then
@@ -240,6 +238,7 @@ test -e /etc/ssl/certs/dhparam.pem || \
 
 # run crontab
 if test "${LETSENCRYPT}" != "never"; then
+    /renew.letsencrypt.sh
     cron -L7
 fi
 
