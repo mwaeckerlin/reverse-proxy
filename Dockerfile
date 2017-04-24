@@ -15,13 +15,13 @@ ENV LOG_LEVEL ""
 #  - always: always create SSL certificates from letsencrypt, overwrite existing
 #  - missing: create SSL certificates from letsencrypt, if not already available
 #  - never: disable letsencrypt
-ENV LETSENCRYPT "never"
+ENV LETSENCRYPT "missing"
 # mailcontact for letsencrypt, configure as one of these:
 #  - user@host.url (all mails for all domains go to one account user@host.url)
 #  - user (one account per SSL domain, mails go to account user@domain.url)
 #  - <empty> (do not register an email address)
 # defaults to admin@domain.url
-ENV MAILCONTACT "admin"
+ENV MAILCONTACT ""
 ENV HTTP_PORT 80
 ENV HTTPS_PORT 443
 ENV LDAP_HOST ""

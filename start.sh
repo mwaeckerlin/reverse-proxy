@@ -41,11 +41,18 @@ function configEntry() {
 function writeConfigs() {
     local server
     for server in ${!conf[@]}; do
+        local certfile="ssl_certificate /etc/ssl/private/${server}.crt"
+        local keyfile="/etc/ssl/private/${server}.key"
+        local havecerts=$(test -e "${certfile}" -a -e "${keyfile}" && echo 1 || echo 0)
+        local getcerts=$(test "${LETSENCRYPT}" = "always" -o \( $havecerts -eq 0 -a "${LETSENCRYPT}" = "missing" \) && echo 1 || echo 0)
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
-        if test "${LETSENCRYPT}" = "always" -o \( \( ! -f /etc/ssl/private/${server}.crt -o ! -f /etc/ssl/private/${server}.key \) -a "${LETSENCRYPT}" = "missing" \); then
-            mail=""
+        if test $getcerts -eq 1; then
+            local mail=""
+            certfile="/etc/letsencrypt/live/${server}/fullchain.pem"
+            keyfile="/etc/letsencrypt/live/${server}/privkey.pem"
+            echo "    - server ${server} get certificates from let's encrypt"
             if test -n "${MAILCONTACT}"; then
                 if [[ "${MAILCONTACT}" =~ @ ]]; then
                     mail="-m ${MAILCONTACT}"
@@ -53,14 +60,19 @@ function writeConfigs() {
                     mail="-m ${MAILCONTACT}@${server}"
                 fi
             fi
-            echo > /etc/cron.monthly/renew-certificates-${server//[^a-zA-Z0-0]/-} <<EOF
-#! /bin/bash
-/renew.sh ${LETSENCRYPT_OPTIONS} ${mail} -d ${server}
-EOF
-            chmod +x /etc/cron.monthly/renew-certificates-${server//[^a-zA-Z0-0]/-}
-            /renew.sh ${LETSENCRYPT_OPTIONS} ${mail} -d ${server}
+            if test -e "${certfile}" -a -e "${keyfile}"; then
+                letsencrypt renew -n --agree-tos -a standalone -d ${server} -d ${server} ${mail}
+            else
+                letsencrypt certonly -n --agree-tos -a standalone -d ${server} -d ${server} ${mail}
+            fi
+            if ! test -e "${certfile}" -a -e "${keyfile}"; then
+                echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
+                exit 1
+            fi
+            havecerts=1
+            cp /renew.letsencrypt.sh /etc/cron.monthly/renew
         fi
-        if test -f /etc/ssl/private/${server}.crt -a -f /etc/ssl/private/${server}.key; then
+        if test $havecerts -eq 1; then
             echo "    - server ${server} supports SSL"
             # write SSL configuration
             cat >> "${target}" <<EOF
@@ -68,22 +80,27 @@ server { # redirect http to https
   listen ${HTTP_PORT};
   server_name ${server};
   server_name www.${server};
-  return 301 https://${server}\$request_uri;
+  location /.well-known {
+      alias /acme/.well-known;
+  }
+  location / {
+    return 301 https://${server}\$request_uri;
+  }
 }
 server { # redirect www to non-www
   listen ${HTTPS_PORT};
   server_name www.${server};
   return 301 \$scheme://${server}\$request_uri;
   ssl on;
-  ssl_certificate /etc/ssl/private/${server}.crt;
-  ssl_certificate_key /etc/ssl/private/${server}.key;
+  ssl_certificate ${certfile};
+  ssl_certificate_key ${keyfile};
 }
 server {
   listen ${HTTPS_PORT};
   server_name ${server};
   ssl on;
-  ssl_certificate /etc/ssl/private/${server}.crt;
-  ssl_certificate_key /etc/ssl/private/${server}.key;
+  ssl_certificate ${certfile};
+  ssl_certificate_key ${keyfile};
 ${conf[${server}]}}
 EOF
         else
@@ -216,6 +233,10 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
 done
 
 writeConfigs;
+
+test -e /etc/ssl/certs/dhparam.pem || \
+    openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+
 
 # run crontab
 if test "${LETSENCRYPT}" != "never"; then
