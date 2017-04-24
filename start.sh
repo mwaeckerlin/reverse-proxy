@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 OPT=${1:-"-f"}
 
@@ -49,7 +49,7 @@ function writeConfigs() {
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
         if test $getcerts -eq 1; then
-            local mail=""
+            local mail="--register-unsafely-without-email"
             certfile="/etc/letsencrypt/live/${server}/fullchain.pem"
             keyfile="/etc/letsencrypt/live/${server}/privkey.pem"
             echo "    - server ${server} get certificates from let's encrypt"
@@ -61,9 +61,9 @@ function writeConfigs() {
                 fi
             fi
             if test -e "${certfile}" -a -e "${keyfile}"; then
-                letsencrypt renew -n --agree-tos -a standalone -d ${server} -d ${server} ${mail}
+                letsencrypt renew -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
             else
-                letsencrypt certonly -n --agree-tos -a standalone -d ${server} -d ${server} ${mail}
+                letsencrypt certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
             fi
             if ! test -e "${certfile}" -a -e "${keyfile}"; then
                 echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
