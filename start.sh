@@ -61,9 +61,9 @@ function writeConfigs() {
                 fi
             fi
             if test -e "${certfile}" -a -e "${keyfile}"; then
-                letsencrypt renew -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
+                certbot renew -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
             else
-                letsencrypt certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
+                certbot certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
             fi
             if ! test -e "${certfile}" -a -e "${keyfile}"; then
                 echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
