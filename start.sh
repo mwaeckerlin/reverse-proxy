@@ -143,7 +143,7 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${forward,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     server=${frompath%%/*}
     if test "${frompath#*/}" != "${frompath}"; then
-        fromlocation=${frompath#*/}
+        fromlocation=/${frompath#*/}
     else
         fromlocation=
     fi
@@ -153,13 +153,13 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     else
         host=
     fi
-    cmd="location /${fromlocation%/}/ {
+    cmd="location ${fromlocation%/}/ {
     include proxy.conf;
     proxy_pass http://${target%/}/;
-    proxy_redirect http://${target%/}/ /${fromlocation%/}/;
+    proxy_redirect http://${target%/}/ ${fromlocation%/}/;
     "
     if test -n "$host"; then
-        cmd+="proxy_redirect http://${host%/}/ /${fromlocation%/}/;
+        cmd+="proxy_redirect http://${host%/}/ ${fromlocation%/}/;
     subs_filter \"http://${host}\" \"\$scheme://${frompath}\";
     subs_filter \"${host}\" \"${frompath}\";
     "
@@ -188,7 +188,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     fromserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     server=${fromserverpath%%/*}
     if test "${fromserverpath#*/}" != "${fromserverpath}"; then
-        fromlocation=${fromserverpath#*/}
+        fromlocation=/${fromserverpath#*/}
     else
         fromlocation=
     fi
@@ -197,7 +197,8 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     else
         fromproxy="http://${fromip}:${fromport}"
     fi
-    cmd="location /${fromlocation} {
+    cmd="location ${fromlocation%/}/ {
+    proxy_set_header Host \$host;
     include proxy.conf;
     set \$fixed_destination \$http_destination;
     if ( \$http_destination ~* ^https(.*)\$ ) {
@@ -208,33 +209,33 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
       rewrite $frombase/(.*) $frombase/\$1 break;
     }
     #if ( \$host != '${server}' ) {
-    #  rewrite ^/(.*)$ \$scheme://${server}/${fromlocation}/\$1 permanent;
+    #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation%/}/\$1 permanent;
     #}
     proxy_cookie_domain ${fromip} ${server};"
     if test -z "$frombase"; then
         cmd+="
-    proxy_cookie_path / /${fromlocation};"
+    proxy_cookie_path / ${fromlocation%/}/;"
     fi
     cmd+="
     proxy_pass ${fromproxy}${frombase%/}/;
-    proxy_redirect \$scheme://${server}/${fromlocation} \$scheme://${server}/${fromlocation};
-    proxy_redirect \$scheme://${server} \$scheme://${server}/${fromlocation};
-    proxy_redirect /${fromlocation} \$scheme://${server}/${fromlocation};
-    proxy_redirect / \$scheme://${server}/${fromlocation};
+    proxy_redirect \$scheme://${server}${fromlocation%/}/ \$scheme://${server}${fromlocation%/}/;
+    proxy_redirect \$scheme://${server} \$scheme://${server}${fromlocation%/}/;
+    proxy_redirect ${fromlocation%/}/ \$scheme://${server}${fromlocation%/}/;
+    proxy_redirect / \$scheme://${server}${fromlocation%/}/;
     proxy_redirect / /;"
     if test -z "$frombase"; then
         cmd+="
-    subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}/${fromlocation}\";
-    subs_filter \"http://${fromip}\" \"\$scheme://${server}/${fromlocation}\";
-    subs_filter \"${fromip}:${fromport}\" \"${server}/${fromlocation}\";
-    subs_filter \"${fromip}\" \"${server}/${fromlocation}\";
-    subs_filter \"http://localhost:${fromport}\" \"\$scheme://${server}/${fromlocation}\";
-    subs_filter \"http://localhost\" \"\$scheme://${server}/${fromlocation}\";
-    subs_filter \"localhost:${fromport}\" \"${server}/${fromlocation}\";
-    subs_filter \"localhost\" \"${server}/${fromlocation}\";"
+    subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation%/}/\";
+    subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation%/}/\";
+    subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation%/}/\";
+    subs_filter \"${fromip}\" \"${server}${fromlocation%/}/\";
+    subs_filter \"http://localhost:${fromport}\" \"\$scheme://${server}${fromlocation%/}/\";
+    subs_filter \"http://localhost\" \"\$scheme://${server}${fromlocation%/}/\";
+    subs_filter \"localhost:${fromport}\" \"${server}${fromlocation%/}/\";
+    subs_filter \"localhost\" \"${server}${fromlocation%/}/\";"
         if test -n "${fromlocation}"; then
             cmd+="
-    subs_filter \"(src|href|action) *= *\\\"/\" \"\$1=\\\"/${fromlocation}/\" ir;"
+    subs_filter \"(src|href|action) *= *\\\"/\" \"\$1=\\\"${fromlocation%/}/\" ir;"
         fi
     fi
     cmd+="
