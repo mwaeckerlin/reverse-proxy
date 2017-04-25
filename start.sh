@@ -146,13 +146,25 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
         fromlocation=${frompath#*/}
     else
         fromlocation=
-    fi     
+    fi
     target=$(env | sed -n 's/forward-'${forward//\//\\/}'=//p')
-    cmd="location /${fromlocation} {
+    if test "${target##*:}" != "${target}"; then
+        host="${target%:*}"
+    else
+        host=
+    fi
+    cmd="location /${fromlocation%/}/ {
     include proxy.conf;
-    proxy_pass http://${target}/;
-    proxy_redirect http://${target} /${fromlocation};
-    subs_filter \"http://${target}\" \"\$scheme://${frompath}\";
+    proxy_pass http://${target%/}/;
+    proxy_redirect http://${target%/}/ /${fromlocation%/}/;
+    "
+    if test -n "$host"; then
+        cmd+="proxy_redirect http://${host%/}/ /${fromlocation%/}/;
+    subs_filter \"http://${host}\" \"\$scheme://${frompath}\";
+    subs_filter \"${host}\" \"${frompath}\";
+    "
+    fi
+    cmd+="subs_filter \"http://${target}\" \"\$scheme://${frompath}\";
     subs_filter \"${target}\" \"${frompath}\";
     subs_filter \"http://localhost\" \"\$scheme://${frompath}\";
     subs_filter \"localhost\" \"${frompath}\";
@@ -204,7 +216,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     proxy_cookie_path / /${fromlocation};"
     fi
     cmd+="
-    proxy_pass ${fromproxy}${frombase};
+    proxy_pass ${fromproxy}${frombase%/}/;
     proxy_redirect \$scheme://${server}/${fromlocation} \$scheme://${server}/${fromlocation};
     proxy_redirect \$scheme://${server} \$scheme://${server}/${fromlocation};
     proxy_redirect /${fromlocation} \$scheme://${server}/${fromlocation};
