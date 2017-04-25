@@ -244,13 +244,13 @@ done
 
 writeConfigs;
 
-test -e /etc/ssl/certs/dhparam.pem || \
-    openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+#test -e /etc/ssl/certs/dhparam.pem || \
+#    openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
 
 
 # run crontab
 if test "${LETSENCRYPT}" != "never"; then
-    /renew.letsencrypt.sh
+    certbot renew -n --agree-tos -a standalone 
     cron -L7
 fi
 
