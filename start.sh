@@ -157,9 +157,11 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     include proxy.conf;
     proxy_pass http://${target%/}/;
     proxy_redirect http://${target%/}/ ${fromlocation%/}/;
+    proxy_redirect https://${target%/}/ ${fromlocation%/}/;
     "
     if test -n "$host"; then
         cmd+="proxy_redirect http://${host%/}/ ${fromlocation%/}/;
+    proxy_redirect https://${host%/}/ ${fromlocation%/}/;
     subs_filter \"http://${host}\" \"\$scheme://${frompath}\";
     subs_filter \"${host}\" \"${frompath}\";
     "
