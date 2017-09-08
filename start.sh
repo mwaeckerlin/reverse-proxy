@@ -154,7 +154,19 @@ for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
         host=
     fi
     cmd="location ${fromlocation%/}/ {
+    proxy_set_header Host \$host;
     include proxy.conf;
+    set \$fixed_destination \$http_destination;
+    if ( \$http_destination ~* ^https(.*)\$ ) {
+      set \$fixed_destination http\$1;
+    }
+    proxy_set_header Destination \$fixed_destination;
+    if (\$request_method ~ ^COPY\$) {
+      rewrite $frombase/(.*) $frombase/\$1 break;
+    }
+    #if ( \$host != '${server}' ) {
+    #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation%/}/\$1 permanent;
+    #}
     proxy_pass http://${target%/}/;
     proxy_redirect http://${target%/}/ ${fromlocation%/}/;
     proxy_redirect https://${target%/}/ ${fromlocation%/}/;
