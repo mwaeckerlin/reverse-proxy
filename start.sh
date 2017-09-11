@@ -166,7 +166,7 @@ function forward() {
     #}
     proxy_cookie_domain ${tourl} ${fromurl};
     proxy_cookie_path ${tobase}/ ${frombase}/;
-    proxy_pass ${tourl}${toport}${tobase}/;
+    proxy_pass http://${tourl}${toport}${tobase}/;
     proxy_redirect http://${tourl}${toport}${tobase}/ ${frombase}/;
     proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase}/;
     proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
