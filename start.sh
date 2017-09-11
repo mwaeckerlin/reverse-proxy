@@ -121,6 +121,65 @@ EOF
     done
 }
 
+## forward address to another address in the form:
+##   http(s)://fromurl/frombase → http://tourl:toport/tobase
+## args:
+##  $1: source in the form of fromurl/frombase
+##  $2: target in the form of tourl:toport/tobase
+##  $3: target ip address (optional)
+function forward() {
+    source=$1
+    target=$2
+    toip=$3
+    frombase=
+    fromurl=$source
+    if [[ "${source}" =~ / ]]; then
+        frombase=/${source#*/}
+        frombase=${frombase%/}
+        fromurl=${source%%/*}
+    fi
+    if [[ "${fromurl}" =~ : ]]; then
+        fromurl=${fromurl%%:*}
+    fi
+    tobase=
+    toport=
+    tourl=$target
+    if [[ "${target}" =~ / ]]; then
+        tobase=/${target#*/}
+        tobase=${tobase%/}
+        tourl=${target%%/*}
+    fi
+    if [[ "${tourl}" =~ : ]]; then
+        toport=:${tourl#*:}
+        tourl=${tourl%%:*}
+    fi
+    if [ -z "$toip" ]; then
+        toip=$(getent hosts ${tourl} | sed -n '1s, .*,,p')
+    fi
+    cmd="location ${frombase}/ {
+    include proxy.conf;
+    if (\$request_method ~ ^COPY\$) {
+      rewrite $tobase/(.*) $frombase/\$1 break;
+    }
+    #if ( \$host != '${fromurl}' ) {
+    #  rewrite ^/(.*)$ \$scheme://${fromurl}${frombase}/\$1 permanent;
+    #}
+    proxy_cookie_domain ${tourl} ${fromurl};
+    proxy_cookie_path ${tobase}/ ${frombase}/;
+    proxy_pass ${tourl}${toport}${tobase}/;
+    proxy_redirect http://${tourl}${toport}${tobase}/ ${frombase}/;
+    proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase}/;
+    proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
+    proxy_redirect ${tobase}/ ${frombase}/;
+    proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
+    subs_filter \"http://${tourl}${toport}${tobase}\" \"\$scheme://${fromurl}${frombase}\";
+    subs_filter \"${tourl}${toport}${tobase}\" \"${fromurl}${frombase}\";
+    subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;
+  }"
+    configEntry "${fromurl}" "${cmd}"
+}
+
+
 ################################################################################################
 ## Main ########################################################################################
 ################################################################################################
@@ -140,121 +199,26 @@ done
 
 # check for environment variables that are set for explicit forwarding
 for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
-    frompath=$(echo "${forward,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
-    server=${frompath%%/*}
-    if test "${frompath#*/}" != "${frompath}"; then
-        fromlocation=/${frompath#*/}
-    else
-        fromlocation=
-    fi
+    source=$(echo "${forward,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     target=$(env | sed -n 's/forward-'${forward//\//\\/}'=//p')
-    if test "${target##*:}" != "${target}"; then
-        host="${target%:*}"
-    else
-        host=
-    fi
-    cmd="location ${fromlocation%/}/ {
-    proxy_set_header Host \$host;
-    include proxy.conf;
-    set \$fixed_destination \$http_destination;
-    if ( \$http_destination ~* ^https(.*)\$ ) {
-      set \$fixed_destination http\$1;
-    }
-    proxy_set_header Destination \$fixed_destination;
-    if (\$request_method ~ ^COPY\$) {
-      rewrite $frombase/(.*) $frombase/\$1 break;
-    }
-    #if ( \$host != '${server}' ) {
-    #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation%/}/\$1 permanent;
-    #}
-    proxy_pass http://${target%/}/;
-    proxy_redirect http://${target%/}/ ${fromlocation%/}/;
-    proxy_redirect https://${target%/}/ ${fromlocation%/}/;
-    "
-    if test -n "$host"; then
-        cmd+="proxy_redirect http://${host%/}/ ${fromlocation%/}/;
-    proxy_redirect https://${host%/}/ ${fromlocation%/}/;
-    subs_filter \"http://${host}\" \"\$scheme://${frompath}\";
-    subs_filter \"${host}\" \"${frompath}\";
-    "
-    fi
-    cmd+="subs_filter \"http://${target}\" \"\$scheme://${frompath}\";
-    subs_filter \"${target}\" \"${frompath}\";
-    subs_filter \"http://localhost\" \"\$scheme://${frompath}\";
-    subs_filter \"localhost\" \"${frompath}\";
-  }"
-    configEntry "${server}" "${cmd}"
+    forward ${source} ${target}
 done
 
 # scan through all linked docker containers and add virtual hosts
 for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
+    source=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     if env | egrep -q '^'${name}'_ENV_BASEPATH='; then
-        frombase="$(env | sed -n 's/'${name//\//\\/}'_ENV_BASEPATH=//p')"
+        tobase="$(env | sed -n 's/'${name//\//\\/}'_ENV_BASEPATH=//p')"
     else
-        frombase=""
+        tobase=""
     fi
     if env | egrep -q '^'${name}'_TO_PORT='; then
-        fromport="$(env | sed -n 's/'${name//\//\\/}'_TO_PORT=//p')"
+        toport="$(env | sed -n 's/'${name//\//\\/}'_TO_PORT=//p')"
     else
-        fromport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p' | head -1)"
+        toport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p' | head -1)"
     fi
-    fromip="$(env | sed -n 's/'${name//\//\\/}'_PORT_'${fromport//\//\\/}'_TCP_ADDR=//p')"
-    fromserverpath=$(echo "${name,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
-    server=${fromserverpath%%/*}
-    if test "${fromserverpath#*/}" != "${fromserverpath}"; then
-        fromlocation=/${fromserverpath#*/}
-    else
-        fromlocation=
-    fi
-    if test "${fromport}" = "${HTTP_PORT}"; then
-        fromproxy="http://${fromip}"
-    else
-        fromproxy="http://${fromip}:${fromport}"
-    fi
-    cmd="location ${fromlocation%/}/ {
-    proxy_set_header Host \$host;
-    include proxy.conf;
-    set \$fixed_destination \$http_destination;
-    if ( \$http_destination ~* ^https(.*)\$ ) {
-      set \$fixed_destination http\$1;
-    }
-    proxy_set_header Destination \$fixed_destination;
-    if (\$request_method ~ ^COPY\$) {
-      rewrite $frombase/(.*) $frombase/\$1 break;
-    }
-    #if ( \$host != '${server}' ) {
-    #  rewrite ^/(.*)$ \$scheme://${server}${fromlocation%/}/\$1 permanent;
-    #}
-    proxy_cookie_domain ${fromip} ${server};"
-    if test -z "$frombase"; then
-        cmd+="
-    proxy_cookie_path / ${fromlocation%/}/;"
-    fi
-    cmd+="
-    proxy_pass ${fromproxy}${frombase%/}/;
-    proxy_redirect \$scheme://${server}${fromlocation%/}/ \$scheme://${server}${fromlocation%/}/;
-    proxy_redirect \$scheme://${server} \$scheme://${server}${fromlocation%/}/;
-    proxy_redirect ${fromlocation%/}/ \$scheme://${server}${fromlocation%/}/;
-    proxy_redirect / \$scheme://${server}${fromlocation%/}/;
-    proxy_redirect / /;"
-    if test -z "$frombase"; then
-        cmd+="
-    subs_filter \"http://${fromip}:${fromport}\" \"\$scheme://${server}${fromlocation%/}/\";
-    subs_filter \"http://${fromip}\" \"\$scheme://${server}${fromlocation%/}/\";
-    subs_filter \"${fromip}:${fromport}\" \"${server}${fromlocation%/}/\";
-    subs_filter \"${fromip}\" \"${server}${fromlocation%/}/\";
-    subs_filter \"http://localhost:${fromport}\" \"\$scheme://${server}${fromlocation%/}/\";
-    subs_filter \"http://localhost\" \"\$scheme://${server}${fromlocation%/}/\";
-    subs_filter \"localhost:${fromport}\" \"${server}${fromlocation%/}/\";
-    subs_filter \"localhost\" \"${server}${fromlocation%/}/\";"
-        if test -n "${fromlocation}"; then
-            cmd+="
-    subs_filter \"(src|href|action) *= *\\\"/\" \"\$1=\\\"${fromlocation%/}/\" ir;"
-        fi
-    fi
-    cmd+="
-  }"
-    configEntry "${server}" "${cmd}"
+    toip="$(env | sed -n 's/'${name//\//\\/}'_PORT_'${toport//\//\\/}'_TCP_ADDR=//p')"
+    forward ${source} ${toip}:${toport}${tobase%/}
 done
 
 writeConfigs;
