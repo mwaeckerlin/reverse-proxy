@@ -173,8 +173,12 @@ function forward() {
     proxy_redirect ${tobase}/ ${frombase}/;
     proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
     subs_filter \"http://${tourl}${toport}${tobase}\" \"\$scheme://${fromurl}${frombase}\";
-    subs_filter \"${tourl}${toport}${tobase}\" \"${fromurl}${frombase}\";
-    subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;
+    subs_filter \"${tourl}${toport}${tobase}\" \"${fromurl}${frombase}\";"
+    if [ "${tobase}" != "${frombase}" ]; then
+        cmd+="
+    subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;"
+    fi
+    cmd+="    
   }"
     configEntry "${fromurl}" "${cmd}"
 }
