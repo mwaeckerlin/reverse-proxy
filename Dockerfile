@@ -2,10 +2,11 @@ FROM mwaeckerlin/letsencrypt
 MAINTAINER mwaeckerlin
 
 ADD proxy.conf /etc/nginx/proxy.conf
+ADD nginx-configure.sh /nginx-configure.sh
 ADD start.sh /start.sh
 
 RUN apt-get -y update
-RUN apt-get -y install nginx nginx-extras
+RUN apt-get -y install nginx nginx-extras inotify-tools
 RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
 
 # DEBUG_LEVEL is one of: debug, info, notice, warn, error, crit, alert, emerg

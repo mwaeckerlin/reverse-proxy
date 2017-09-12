@@ -1,5 +1,60 @@
 # Docker Image: Virtual Hosts Reverse Proxy #
 
+## Configuration From Config File ##
+
+You can reference a file with name `reverse-proxy.conf`. Create a configuration named `reverse-proxy.conf` that contains lines with redirect and forward configurations in the form as they are accepted by the script `nginx-configure.sh`. Try `nginx-configure.sh --help` for more information. You can use it either with the new `docker config` feature, but because this does not allow to change the file, better use is as mount or volume.
+
+e.g. : 
+
+The best of all: If the config file is used and it changes while the reverse proxy is running, nginx is reconfigured and the new configuration is reloaded without downtime.
+
+Example for a `reverse-proxy.conf` file:
+
+```
+--redirect my.web-site.com  my.website.com
+--forward  my.website.com   server1.intranet:8001
+--forward  another.site.com server2.intranet:8080
+--forward  some.more.com    192.168.16.8
+```
+
+Use it static, unchangable with `docker config`:
+```
+docker config create reverse-proxy.conf reverse-proxy.conf
+docker service create -d --config reverse-proxy.conf … mwaeckerlin/reverse-proxy
+```
+
+Better, use it as volume in a container, so you can change it dynamically from outside:
+```
+docker run -d -v $(pwd)/reverse-proxy.conf:/reverse-proxy.conf … mwaeckerlin/reverse-proxy
+```
+
+Best, use it as mount in a swarm service, so you can change it dynamically from outside:
+```
+docker service create -d --mount type=bind,source=$(pwd)/reverse-proxy.conf,target=/reverse-proxy.conf … mwaeckerlin/reverse-proxy
+```
+
+In case of conflicts, docker `--link` and `--environment` configurations overwrite the configurations from `reverse-proxy.conf`, so better don't mix.
+
+## Generic Configuration and Secret Files ##
+
+Any configuration or secret file that ends in `*.conf.sh` is sourced
+at startup, so you can add your environment variables into these
+configurations or secret files.
+
+E.g.:
+
+```
+docker secret create env.conf.sh - <<EOF
+export MY_SPECIAL_PASSWORD="S3cr37p@ßvv0Rð"
+EOF
+docker config create env.conf.sh - <<EOF
+export LOG_LEVEL="debug"
+export MAILCONTACT="me@home.com"
+export LETSENCRYPT="none"
+EOF
+```
+
+
 ## Redirect URL to Linked Container ##
 
 On your computer start any number of services, then start a `mwaeckerlin/reverse-proxy` and link to all your docker services. The link alias must be the FQDN, the fully qualified domain name of your service. For example your URL is `wordpress.myhost.org` and wordpress runs in a docker container named `mysite`:
