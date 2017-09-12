@@ -50,7 +50,7 @@ EOF
 docker config create env.conf.sh - <<EOF
 export LOG_LEVEL="debug"
 export MAILCONTACT="me@home.com"
-export LETSENCRYPT="none"
+export LETSENCRYPT="never"
 EOF
 ```
 

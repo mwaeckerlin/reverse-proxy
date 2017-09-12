@@ -4,6 +4,7 @@
 for f in /*.conf.sh /run/secrets/*.conf.sh; do
     if test -e "$f"; then
         . "$f"
+    fi
 done
 
 # check how to run webserver
