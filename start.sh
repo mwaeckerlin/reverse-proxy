@@ -24,10 +24,6 @@ for f in /*.conf.sh /run/secrets/*.conf.sh; do
     fi
 done
 
-# set log level
-sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL}"';,g' \
-    -i /etc/nginx/nginx.conf
-
 #test -e /etc/ssl/certs/dhparam.pem || \
 #    openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
 

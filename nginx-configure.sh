@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+# detect whether nginy is running
+nginx=$(pgrep nginx 2>&1 > /dev/null && echo running || echo off)
+
 # setup nginx configuration from server list
 declare -A conf
 
@@ -36,98 +39,6 @@ success() {
     echo -en "\e[1;32msuccess" 1>&2
     append_msg $* 1>&2
 }
-
-# commandline parameter evaluation
-nginx=$(pgrep nginx 2>&1 > /dev/null && echo running || echo off)
-while test $# -gt 0; do
-    case "$1" in
-        (--help|-h) less <<EOF
-SYNOPSIS
-
-  $0 [OPTIONS]
-
-OPTIONS
-
-  --help, -h                 show this help
-  --redirect, -r FROM TO     add a redirect
-  --forward, -f FROM TO      add a forward rule
-
-ENVIRONMENT
-
-  Environment variables are evaluated and converted to redirect and
-  forward requests, if they are defined in the following forman, and
-  if they are url encoded:
-
-  redirect-FROM=TO
-  forward-FROM=TO
-
-LINK
-
-  Environment variables as set up by "docker create --link TO:FROM"
-  are also evaluated. See README.md for more information on this
-  topic.
-
-FROM
-
-  Externally visible domain name including optional base path, in the
-  form "domain/base".
-
-TO
-
-  Internal target to forward external requests to, a host name or ip
-  address, an optional port and an optional base path, in the form
-  "host:port/base".
-
-DESCRIPTION
-
-Setup nginx reverse proxy configuration. Allow to redirect or forward
-http and https requests. By default, ssl is enabled, certificates are
-retrieved through letsencrypt and http is redirected to https. Also
-all addresses will be accessible through the url or through www.url
-which is redirected to url.
-
-EXAMPLE
-
-  $0 \\
-     --redirect my.web-site.com  my.website.com \\
-     --forward  my.website.com   server1.intranet:8001 \\
-     --forward  another.site.com server2.intranet:8080 \\
-     --forward  some.more.com    192.168.16.8
-
-All external requests to my.web-site.com amd www.my.web-site.com are
-redirected to my.website.com. All requests to my.website.com and
-www.my.website.com are forwarded to the internal address
-server1.intranet:8001. All requests to another.site.com and
-www.another.site.com are forwarded to the internal address
-server2.intranet:8080. All requests to another.site.com and
-www.another.site.com are forwarded to the internal address
-192.168.16.8:80. All http requests are redirected to https and
-certificates are requested for the domains my.web-site.com,
-my.website.com, another.site.com, some.more.com.
-
-EOF
-                    exit;;
-        (--redirect|-r)
-            if test $# -lt 3; then
-                error "missing parameter at $*, try $0 --help"; exit 1
-            fi
-            redirect "$2" "$3"
-            shift 2
-            ;;
-        (--forward|-f)
-            if test $# -lt 3; then
-                error "missing parameter at $*, try $0 --help"; exit 1
-            fi
-            forward "$2" "$3"
-            shift 2
-            ;;
-        (*) error "unknow option $1, try $0 --help"; exit 1;;
-    esac
-    if test $# -eq 0; then
-        error "missing parameter, try $0 --help"; exit 1
-    fi
-    shift;
-done
 
 # run a command, print the result and abort in case of error
 # option: --no-check: ignore the result, continue in case of error
@@ -380,6 +291,98 @@ function redirect() {
 ################################################################################################
 ## Main ########################################################################################
 ################################################################################################
+
+# commandline parameter evaluation
+while test $# -gt 0; do
+    case "$1" in
+        (--help|-h) less <<EOF
+SYNOPSIS
+
+  $0 [OPTIONS]
+
+OPTIONS
+
+  --help, -h                 show this help
+  --redirect, -r FROM TO     add a redirect
+  --forward, -f FROM TO      add a forward rule
+
+ENVIRONMENT
+
+  Environment variables are evaluated and converted to redirect and
+  forward requests, if they are defined in the following forman, and
+  if they are url encoded:
+
+  redirect-FROM=TO
+  forward-FROM=TO
+
+LINK
+
+  Environment variables as set up by "docker create --link TO:FROM"
+  are also evaluated. See README.md for more information on this
+  topic.
+
+FROM
+
+  Externally visible domain name including optional base path, in the
+  form "domain/base".
+
+TO
+
+  Internal target to forward external requests to, a host name or ip
+  address, an optional port and an optional base path, in the form
+  "host:port/base".
+
+DESCRIPTION
+
+Setup nginx reverse proxy configuration. Allow to redirect or forward
+http and https requests. By default, ssl is enabled, certificates are
+retrieved through letsencrypt and http is redirected to https. Also
+all addresses will be accessible through the url or through www.url
+which is redirected to url.
+
+EXAMPLE
+
+  $0 \\
+     --redirect my.web-site.com  my.website.com \\
+     --forward  my.website.com   server1.intranet:8001 \\
+     --forward  another.site.com server2.intranet:8080 \\
+     --forward  some.more.com    192.168.16.8
+
+All external requests to my.web-site.com amd www.my.web-site.com are
+redirected to my.website.com. All requests to my.website.com and
+www.my.website.com are forwarded to the internal address
+server1.intranet:8001. All requests to another.site.com and
+www.another.site.com are forwarded to the internal address
+server2.intranet:8080. All requests to another.site.com and
+www.another.site.com are forwarded to the internal address
+192.168.16.8:80. All http requests are redirected to https and
+certificates are requested for the domains my.web-site.com,
+my.website.com, another.site.com, some.more.com.
+
+EOF
+                    exit;;
+        (--redirect|-r)
+            if test $# -lt 3; then
+                error "missing parameter at $*, try $0 --help"; exit 1
+            fi
+            redirect "$2" "$3"
+            shift 2
+            ;;
+        (--forward|-f)
+            if test $# -lt 3; then
+                error "missing parameter at $*, try $0 --help"; exit 1
+            fi
+            forward "$2" "$3"
+            shift 2
+            ;;
+        (*) error "unknow option $1, try $0 --help"; exit 1;;
+    esac
+    if test $# -eq 0; then
+        error "missing parameter, try $0 --help"; exit 1
+    fi
+    shift;
+done
+
 
 # check for environment variables that are set for explicit redirecting
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
