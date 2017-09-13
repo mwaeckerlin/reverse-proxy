@@ -11,7 +11,7 @@ done
 sed -i '/^daemon off/d' /etc/nginx/nginx.conf
 proxycmd=nginx
 if ! test -e /reverse-proxy.conf; then
-    echo "daemon off;" >> /etc/nginx/nginx.conf;;
+    echo "daemon off;" >> /etc/nginx/nginx.conf
 fi
 
 # set log level
