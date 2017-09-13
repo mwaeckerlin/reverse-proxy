@@ -38,6 +38,7 @@ success() {
 }
 
 # commandline parameter evaluation
+nginx=$(pgrep nginx 2>&1 > /dev/null && echo running || echo off)
 while test $# -gt 0; do
     case "$1" in
         (--help|-h) less <<EOF
@@ -214,32 +215,10 @@ function writeConfigs() {
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         ! test -e "${target}"
-        if test $getcerts -eq 1; then
-            local mail="--register-unsafely-without-email"
-            certfile="/etc/letsencrypt/live/${server}/fullchain.pem"
-            keyfile="/etc/letsencrypt/live/${server}/privkey.pem"
-            echo "    - server ${server} get certificates from let's encrypt"
-            if test -n "${MAILCONTACT}"; then
-                if [[ "${MAILCONTACT}" =~ @ ]]; then
-                    mail="-m ${MAILCONTACT}"
-                else
-                    mail="-m ${MAILCONTACT}@${server}"
-                fi
-            fi
-            if ! test -e "${certfile}" -a -e "${keyfile}"; then
-                certbot certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
-            fi
-            if ! test -e "${certfile}" -a -e "${keyfile}"; then
-                echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
-                exit 1
-            fi
-            havecerts=1
-            cp /renew.letsencrypt.sh /etc/cron.monthly/renew
-        fi
-        if test $havecerts -eq 1; then
+        if test $getcerts -eq 1 -o $havecerts -eq 1; then
             echo "    - server ${server} supports SSL"
             # write SSL configuration
-            cat >> "${target}" <<EOF
+            cat > "${target}" <<EOF
 server { # redirect http to https
   listen ${HTTP_PORT};
   server_name ${server};
@@ -285,6 +264,38 @@ EOF
         ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
         echo "===================="
     done
+    if test $getcerts -eq 1; then
+        local mail="--register-unsafely-without-email"
+        certfile="/etc/letsencrypt/live/${server}/fullchain.pem"
+        keyfile="/etc/letsencrypt/live/${server}/privkey.pem"
+        echo "    - server ${server} get certificates from let's encrypt"
+        if test -n "${MAILCONTACT}"; then
+            if [[ "${MAILCONTACT}" =~ @ ]]; then
+                mail="-m ${MAILCONTACT}"
+            else
+                mail="-m ${MAILCONTACT}@${server}"
+            fi
+        fi
+        if ! test -e "${certfile}" -a -e "${keyfile}"; then
+            if test "$nginx" = "running"; then
+                if nginx -t; then
+                    nginx -s reload
+                    certbot certonly -n --agree-tos -a webroot --webroot-path=/acme -d ${server} -d www.${server} ${mail}
+                    nginx -s reload
+                else
+                    echo "**** ERROR: Configuration failed when setting up $server" 1>&2
+                fi
+            else
+                certbot certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
+            fi
+        fi
+        if ! test -e "${certfile}" -a -e "${keyfile}"; then
+            echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
+            exit 1
+        fi
+        havecerts=1
+        cp /renew.letsencrypt.sh /etc/cron.monthly/renew
+    fi
 }
 
 ## forward address to another address in the form:
@@ -344,7 +355,7 @@ function forward() {
         cmd+="
     subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;"
     fi
-    cmd+="    
+    cmd+="
   }"
     configEntry "${fromurl}" "${cmd}"
 }
