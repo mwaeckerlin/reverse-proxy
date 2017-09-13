@@ -16,7 +16,7 @@ notice() {
     if test $# -eq 0; then
         return
     fi
-    echo -e "\e[1m$*\e[0m" 1>&3
+    echo -e "\e[1m$*\e[0m" 1>&2
 }
 
 # write error message
@@ -87,10 +87,10 @@ which is redirected to url.
 
 EXAMPLE
 
-  $0 \
-     --redirect my.web-site.com  my.website.com \
-     --forward  my.website.com   server1.intranet:8001 \
-     --forward  another.site.com server2.intranet:8080 \
+  $0 \\
+     --redirect my.web-site.com  my.website.com \\
+     --forward  my.website.com   server1.intranet:8001 \\
+     --forward  another.site.com server2.intranet:8080 \\
      --forward  some.more.com    192.168.16.8
 
 All external requests to my.web-site.com amd www.my.web-site.com are
@@ -110,14 +110,14 @@ EOF
             if test $# -lt 3; then
                 error "missing parameter at $*, try $0 --help"; exit 1
             fi
-            run redirect "$2" "$3"
+            redirect "$2" "$3"
             shift 2
             ;;
         (--forward,-f)
             if test $# -lt 3; then
                 error "missing parameter at $*, try $0 --help"; exit 1
             fi
-            run forward "$2" "$3"
+            forward "$2" "$3"
             shift 2
             ;;
         (*) error "unknow option $1, try $0 --help"; exit 1;;
@@ -374,14 +374,14 @@ function redirect() {
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     target=$(env | sed -n 's/redirect-'${redirect//\//\\/}'=//p')
-    run redirect "$frompath" "$target"
+    redirect "$frompath" "$target"
 done
 
 # check for environment variables that are set for explicit forwarding
 for forward in $(env | sed -n 's/forward-\(.*\)=.*/\1/p'); do
     source=$(echo "${forward,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
     target=$(env | sed -n 's/forward-'${forward//\//\\/}'=//p')
-    run forward ${source} ${target}
+    forward ${source} ${target}
 done
 
 # scan through all linked docker containers and add virtual hosts
@@ -398,7 +398,7 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
         toport="$(env | sed -n 's/'${name//\//\\/}'_PORT_.*_TCP_PORT=//p' | head -1)"
     fi
     toip="$(env | sed -n 's/'${name//\//\\/}'_PORT_'${toport//\//\\/}'_TCP_ADDR=//p')"
-    run forward ${source} ${toip}:${toport}${tobase%/}
+    forward ${source} ${toip}:${toport}${tobase%/}
 done
 
-run writeConfigs;
+writeConfigs;
