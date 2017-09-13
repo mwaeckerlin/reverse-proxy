@@ -107,14 +107,14 @@ my.website.com, another.site.com, some.more.com.
 
 EOF
                     exit;;
-        (--redirect,-r)
+        (--redirect|-r)
             if test $# -lt 3; then
                 error "missing parameter at $*, try $0 --help"; exit 1
             fi
             redirect "$2" "$3"
             shift 2
             ;;
-        (--forward,-f)
+        (--forward|-f)
             if test $# -lt 3; then
                 error "missing parameter at $*, try $0 --help"; exit 1
             fi
