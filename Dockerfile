@@ -1,8 +1,6 @@
 FROM mwaeckerlin/letsencrypt
 MAINTAINER mwaeckerlin
 
-ENV LETSENCRYPT "on"
-
 ADD proxy.conf /etc/nginx/proxy.conf
 ADD nginx-configure.sh /nginx-configure.sh
 ADD start.sh /start.sh
