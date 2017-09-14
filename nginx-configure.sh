@@ -1,7 +1,6 @@
 #!/bin/bash -e
 
-# detect whether nginy is running
-nginx=$(pgrep nginx 2>&1 > /dev/null && echo running || echo off)
+. /letsencrypt-config.sh
 
 # setup nginx configuration from server list
 declare -A conf
@@ -99,14 +98,23 @@ trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FU
 
 ##########################################################################################
 
-
-
 # set log level
 sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL}"';,g' \
     -i /etc/nginx/nginx.conf
 
 # cleanup from previous run
 rm -r /etc/nginx/sites-{available,enabled}/* || true
+
+
+reloadNginx() {
+    if pgrep nginx 2>&1 > /dev/null; then
+        if nginx -t; then
+            nginx -s reload
+        else
+            echo "**** ERROR: Configuration failed when setting up $server" 1>&2
+        fi
+    fi
+}
 
 # setup an nginx configuration entry
 function configEntry() {
@@ -116,20 +124,13 @@ function configEntry() {
 "
 }
 
-function writeConfigs() {
-    local server
-    for server in ${!conf[@]}; do
-        local certfile="ssl_certificate /etc/ssl/private/${server}.crt"
-        local keyfile="/etc/ssl/private/${server}.key"
-        local havecerts=$(test -e "${certfile}" -a -e "${keyfile}" && echo 1 || echo 0)
-        local getcerts=$(test "${LETSENCRYPT}" = "always" -o \( $havecerts -eq 0 -a "${LETSENCRYPT}" = "missing" \) && echo 1 || echo 0)
-        echo "========== $server"
-        local target=/etc/nginx/sites-available/${server}.conf
-        ! test -e "${target}"
-        if test $getcerts -eq 1 -o $havecerts -eq 1; then
-            echo "    - server ${server} supports SSL"
-            # write SSL configuration
-            cat > "${target}" <<EOF
+function writeHTTPS() {
+    local target="$1"
+    local server="$2"
+    local config="$3"
+    local certfile="$4"
+    local keyfile="$5"
+    cat > "${target}" <<EOF
 server { # redirect http to https
   listen ${HTTP_PORT};
   server_name ${server};
@@ -155,11 +156,16 @@ server {
   ssl on;
   ssl_certificate ${certfile};
   ssl_certificate_key ${keyfile};
-${conf[${server}]}}
+${config}
 EOF
-        else
-            echo "    - no SSL support for server ${server}"
-            cat > "${target}" <<EOF
+    reloadNginx
+}
+
+function writeHTTP() {
+    local target="$1"
+    local server="$2"
+    local config="$3"
+    cat > "${target}" <<EOF
 server { # redirect www to non-www
   listen ${HTTP_PORT};
   server_name www.${server};
@@ -170,6 +176,29 @@ server {
   server_name ${server};
 ${conf[${server}]}}
 EOF
+    reloadNginx
+}
+
+function writeConfigs() {
+    local server
+    for server in ${!conf[@]}; do
+        if test "${LETSENCRYPT}" != "off"; then
+            writeHTTP "${target}" "$server" "${conf[${server}]}}"
+            installcerts $server
+        fi
+        
+
+         local getcerts=$(test "${LETSENCRYPT}" = "always" -o \( $havecerts -eq 0 -a "${LETSENCRYPT}" = "missing" \) && echo 1 || echo 0)
+        echo "========== $server"
+        local target=/etc/nginx/sites-available/${server}.conf
+        ! test -e "${target}"
+        if test $getcerts -eq 1 -o $havecerts -eq 1; then
+            echo "    - server ${server} supports SSL"
+            # write SSL configuration
+            writeHTTPS "${target}" "$server" "${conf[${server}]}}" "${certfile}" "${keyfile}"
+        else
+            echo "    - no SSL support for server ${server}"
+            writeHTTP "${target}" "$server" "${conf[${server}]}}"
         fi
         cat "${target}"
         ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf

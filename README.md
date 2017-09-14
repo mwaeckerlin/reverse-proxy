@@ -50,7 +50,7 @@ EOF
 docker config create env.conf.sh - <<EOF
 export LOG_LEVEL="debug"
 export MAILCONTACT="me@home.com"
-export LETSENCRYPT="never"
+export LETSENCRYPT="off"
 EOF
 ```
 
@@ -100,9 +100,8 @@ Configuration:
      - _`user`_: one account per SSL domain, mails go to account `user@domain.url` where `domain.url` is the URL of your SSL domain
      - _empty_: do not register an email address
  - `LETSENCRYPT`: Set environment variable `LETSENCRYPT` to:
-     - `always`: all certificates are installed using Let's Encrypt, existing other certificates are ignored
-     - `missing`: only install Let's Encrypt certificates, if there are no certificates in `/etc/ssl/private`; this is the default
-     - `never`: do not install Let's Encrypt certificates, use non-encrypted `http` if there are no certificates in `/etc/ssl/private`
+     - `on`: use `https` all certificates are installed using Let's Encrypt (default)
+     - `off`: do not use `https`
 
 So, if you don't care, all your sites will automatically be encrypted.
 
