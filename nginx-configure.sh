@@ -102,10 +102,6 @@ trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FU
 sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL}"';,g' \
     -i /etc/nginx/nginx.conf
 
-# cleanup from previous run
-rm -r /etc/nginx/sites-{available,enabled}/* || true
-
-
 reloadNginx() {
     if pgrep nginx 2>&1 > /dev/null; then
         if nginx -t; then
@@ -158,6 +154,7 @@ server {
   ssl_certificate_key ${keyfile};
 ${config}
 EOF
+    test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
     reloadNginx
 }
 
@@ -176,66 +173,24 @@ server {
   server_name ${server};
 ${conf[${server}]}}
 EOF
+    test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
     reloadNginx
 }
 
 function writeConfigs() {
     local server
+    rm -r /etc/nginx/sites-{available,enabled}/* || true
     for server in ${!conf[@]}; do
-        if test "${LETSENCRYPT}" != "off"; then
-            writeHTTP "${target}" "$server" "${conf[${server}]}}"
-            installcerts $server
-        fi
-        
-
-         local getcerts=$(test "${LETSENCRYPT}" = "always" -o \( $havecerts -eq 0 -a "${LETSENCRYPT}" = "missing" \) && echo 1 || echo 0)
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
-        ! test -e "${target}"
-        if test $getcerts -eq 1 -o $havecerts -eq 1; then
-            echo "    - server ${server} supports SSL"
-            # write SSL configuration
+        writeHTTP "${target}" "$server" "${conf[${server}]}}"
+        if test "${LETSENCRYPT}" != "off"; then
+            installcerts $server
             writeHTTPS "${target}" "$server" "${conf[${server}]}}" "${certfile}" "${keyfile}"
-        else
-            echo "    - no SSL support for server ${server}"
-            writeHTTP "${target}" "$server" "${conf[${server}]}}"
         fi
         cat "${target}"
-        ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
         echo "===================="
     done
-    if test $getcerts -eq 1; then
-        local mail="--register-unsafely-without-email"
-        certfile="/etc/letsencrypt/live/${server}/fullchain.pem"
-        keyfile="/etc/letsencrypt/live/${server}/privkey.pem"
-        echo "    - server ${server} get certificates from let's encrypt"
-        if test -n "${MAILCONTACT}"; then
-            if [[ "${MAILCONTACT}" =~ @ ]]; then
-                mail="-m ${MAILCONTACT}"
-            else
-                mail="-m ${MAILCONTACT}@${server}"
-            fi
-        fi
-        if ! test -e "${certfile}" -a -e "${keyfile}"; then
-            if test "$nginx" = "running"; then
-                if nginx -t; then
-                    nginx -s reload
-                    certbot certonly -n --agree-tos -a webroot --webroot-path=/acme -d ${server} -d www.${server} ${mail}
-                    nginx -s reload
-                else
-                    echo "**** ERROR: Configuration failed when setting up $server" 1>&2
-                fi
-            else
-                certbot certonly -n --agree-tos -a standalone -d ${server} -d www.${server} ${mail}
-            fi
-        fi
-        if ! test -e "${certfile}" -a -e "${keyfile}"; then
-            echo "**** ERROR: Installation of Let's Encrypt certificates failed for $server" 1>&2
-            exit 1
-        fi
-        havecerts=1
-        cp /renew.letsencrypt.sh /etc/cron.monthly/renew
-    fi
 }
 
 ## forward address to another address in the form:
