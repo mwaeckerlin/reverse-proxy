@@ -124,8 +124,6 @@ function writeHTTPS() {
     local target="$1"
     local server="$2"
     local config="$3"
-    local certfile="$4"
-    local keyfile="$5"
     cat > "${target}" <<EOF
 server { # redirect http to https
   listen ${HTTP_PORT};
@@ -143,15 +141,15 @@ server { # redirect www to non-www
   server_name www.${server};
   return 301 \$scheme://${server}\$request_uri;
   ssl on;
-  ssl_certificate ${certfile};
-  ssl_certificate_key ${keyfile};
+  ssl_certificate $(certfile $server);
+  ssl_certificate_key $(keyfile $server);
 }
 server {
   listen ${HTTPS_PORT};
   server_name ${server};
   ssl on;
-  ssl_certificate ${certfile};
-  ssl_certificate_key ${keyfile};
+  ssl_certificate $(certfile $server)};
+  ssl_certificate_key $(keyfile $server);
 ${config}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
@@ -179,17 +177,35 @@ EOF
 
 function writeConfigs() {
     local server
-    rm -r /etc/nginx/sites-{available,enabled}/* || true
+    local tst=/var/tmp/nginx
+    test -d "$tst" || mkdir -p "$tst"
+    for file in /etc/nginx/sites-{available,enabled}/*; do
+        test -e "$file" || break
+        server=${file##*/}
+        server=${server%.conf}
+        # remove server if no more configured
+        test "${conf[$server]+isset}" || rm -r "$file"
+    done
+    test -d $tst || mkdir $tst
     for server in ${!conf[@]}; do
+        local cmp="${tst}/${server}"
+        echo "${conf[${server}]}}" > "${cmp}.current"
+        if test -e "${cmp}.last" && diff -q "${cmp}.current" "${cmp}.last"; then
+            # configuration has not changed
+            echo "---- not changed: $server"
+            break
+        fi
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
         writeHTTP "${target}" "$server" "${conf[${server}]}}"
         if test "${LETSENCRYPT}" != "off"; then
-            installcerts $server
-            writeHTTPS "${target}" "$server" "${conf[${server}]}}" "${certfile}" "${keyfile}"
+            installcerts "$server"
+            writeHTTPS "${target}" "$server" "${conf[${server}]}}"
         fi
         cat "${target}"
         echo "===================="
+        mv "${cmp}.current" "${cmp}.last"
+    fi
     done
 }
 
