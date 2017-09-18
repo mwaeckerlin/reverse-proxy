@@ -199,22 +199,24 @@ EOF
 function writeConfigs() {
     local server
     local tst=/var/tmp/nginx
+    echo "---- configured servers: ${!conf[@]}"
     test -d "$tst" || mkdir -p "$tst"
     for file in /etc/nginx/sites-{available,enabled}/*; do
         test -e "$file" || break
         server=${file##*/}
         server=${server%.conf}
         # remove server if no more configured
-        test "${conf[$server]+isset}" || rm -r "$file"
+        test "${conf[$server]+isset}" || \
+            ( rm -r "$file" && echo "---- configuration removed for server ${server}" )
     done
     test -d $tst || mkdir $tst
     for server in ${!conf[@]}; do
         local cmp="${tst}/${server}"
         echo "${conf[${server}]}}" > "${cmp}.current"
-        if test -e "${cmp}.last" && diff -q "${cmp}.current" "${cmp}.last"; then
+        if test -e "${cmp}.last" && diff -q "${cmp}.current" "${cmp}.last" && grep -q ssl_certificate /etc/nginx/sites-available/${server}.conf; then
             # configuration has not changed
             echo "---- not changed: $server"
-            break
+            continue
         fi
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf

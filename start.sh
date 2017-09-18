@@ -2,7 +2,18 @@
 
 # define how to run webserver
 sed -i '/^daemon off/d' /etc/nginx/nginx.conf
-proxycmd=nginx
+
+startNginx() {
+    if nginx -t; then
+        if pgrep nginx 2>&1 > /dev/null; then
+            nginx -s reload
+        else
+            nginx
+        fi
+    else
+        echo "**** ERROR: nginx configuration failed" 1>&2
+    fi
+}
 
 updateConfig() {
     /nginx-configure.sh $*
@@ -34,11 +45,13 @@ ln -sf /proc/self/fd/1 /var/log/nginx/access.log
 ln -sf /proc/self/fd/2 /var/log/nginx/error.log
 
 # run webserver
-eval $proxycmd
+startNginx
 if test -e /reverse-proxy.conf; then
     updateConfig $(</reverse-proxy.conf)
     if test "${LETSENCRYPT}" != "never"; then
-        cron -L7
+        if ! pgrep cron 2>&1 > /dev/null; then
+            cron -L7
+        fi
     fi
     while true; do
         inotifywait -q -e close_write /reverse-proxy.conf
@@ -48,7 +61,9 @@ if test -e /reverse-proxy.conf; then
 else
     updateConfig
     if test "${LETSENCRYPT}" != "never"; then
-        cron -L7
+        if ! pgrep cron 2>&1 > /dev/null; then
+            cron -L7
+        fi
     fi
     sleep infinity
 fi
