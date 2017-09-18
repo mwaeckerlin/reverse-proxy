@@ -120,10 +120,50 @@ function configEntry() {
 "
 }
 
+function writeHTTP() {
+    local target="$1"
+    local server="$2"
+    local config="$3"
+    cat > "${target}" <<EOF
+server { # redirect www to non-www
+  listen ${HTTP_PORT};
+  server_name www.${server};
+  location /.well-known {
+      alias /acme/.well-known;
+  }
+  location / {
+    return 301 http://${server}\$request_uri;
+  }
+}
+server {
+  listen ${HTTP_PORT};
+  server_name ${server};
+  location /.well-known {
+      alias /acme/.well-known;
+  }
+${conf[${server}]}}
+EOF
+    test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
+    reloadNginx
+}
+
 function writeHTTPS() {
     local target="$1"
     local server="$2"
     local config="$3"
+    local certfile="/etc/ssl/private/${server}.crt"
+    local keyfile="/etc/ssl/private/${server}.key"
+    if test -e $(certfile $server); then
+        cp "$(certfile $server)" "$certfile"
+    fi
+    if test -e "$(keyfile $server)"; then
+        cp "$(keyfile $server)" "$keyfile"
+    fi
+    if ! test -e "$certfile" -a -e "$keyfile"; then
+        echo "**** ERROR: fallback to http, certificates not found for $server"
+        writeHTTP $*
+        return
+    fi
     cat > "${target}" <<EOF
 server { # redirect http to https
   listen ${HTTP_PORT};
@@ -148,28 +188,9 @@ server {
   listen ${HTTPS_PORT};
   server_name ${server};
   ssl on;
-  ssl_certificate $(certfile $server)};
-  ssl_certificate_key $(keyfile $server);
+  ssl_certificate $certfile;
+  ssl_certificate_key $keyfile;
 ${config}
-EOF
-    test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
-    reloadNginx
-}
-
-function writeHTTP() {
-    local target="$1"
-    local server="$2"
-    local config="$3"
-    cat > "${target}" <<EOF
-server { # redirect www to non-www
-  listen ${HTTP_PORT};
-  server_name www.${server};
-  return 301 \$scheme://${server}\$request_uri;
-}
-server {
-  listen ${HTTP_PORT};
-  server_name ${server};
-${conf[${server}]}}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
     reloadNginx
