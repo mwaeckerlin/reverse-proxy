@@ -205,7 +205,6 @@ function writeConfigs() {
         cat "${target}"
         echo "===================="
         mv "${cmp}.current" "${cmp}.last"
-    fi
     done
 }
 
