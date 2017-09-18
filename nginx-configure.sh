@@ -151,15 +151,7 @@ function writeHTTPS() {
     local target="$1"
     local server="$2"
     local config="$3"
-    local certfile="/etc/ssl/private/${server}.crt"
-    local keyfile="/etc/ssl/private/${server}.key"
-    if test -e $(certfile $server); then
-        cp "$(certfile $server)" "$certfile"
-    fi
-    if test -e "$(keyfile $server)"; then
-        cp "$(keyfile $server)" "$keyfile"
-    fi
-    if ! test -e "$certfile" -a -e "$keyfile"; then
+    if ! test -e "$(certfile $server)" -a -e "$(keyfile $server)"; then
         echo "**** ERROR: fallback to http, certificates not found for $server"
         writeHTTP $*
         return
@@ -188,8 +180,8 @@ server {
   listen ${HTTPS_PORT};
   server_name ${server};
   ssl on;
-  ssl_certificate $certfile;
-  ssl_certificate_key $keyfile;
+  ssl_certificate $(certfile $server);
+  ssl_certificate_key $(keyfile $server);
 ${config}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
