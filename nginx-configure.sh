@@ -100,6 +100,7 @@ trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FU
 
 # set log level
 sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL:-error}"';,g' \
+    -e 's,\(access_log /var/log/nginx/access.log\).*;,\1 combined;,g' \
     -i /etc/nginx/nginx.conf
 
 reloadNginx() {
@@ -132,7 +133,7 @@ server { # redirect www to non-www
       alias /acme/.well-known;
   }
   location / {
-    return 301 http://${server}:{HTTP_PORT}\$request_uri;
+    return 301 http://${server}:${HTTP_PORT}\$request_uri;
   }
 }
 server {
@@ -165,13 +166,13 @@ server { # redirect http to https
       alias /acme/.well-known;
   }
   location / {
-    return 301 https://${server}:{HTTPS_PORT}\$request_uri;
+    return 301 https://${server}:${HTTPS_PORT}\$request_uri;
   }
 }
 server { # redirect www to non-www
   listen ${HTTPS_PORT};
   server_name www.${server};
-  return 301 \$scheme://${server}:{HTTP_PORT}\$request_uri;
+  return 301 \$scheme://${server}:${HTTP_PORT}\$request_uri;
   ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
