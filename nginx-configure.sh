@@ -266,21 +266,25 @@ function forward() {
     #if ( \$host != '${fromurl}' ) {
     #  rewrite ^/(.*)$ \$scheme://${fromurl}${frombase}/\$1 permanent;
     #}
-    proxy_cookie_domain ${tourl} ${fromurl};
-    proxy_cookie_path ${tobase}/ ${frombase}/;
-    proxy_pass http://${tourl}${toport}${tobase}/;
-    proxy_redirect http://${tourl}${toport}${tobase}/ ${frombase}/;
-    proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase}/;
-    proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
-    proxy_redirect ${tobase}/ ${frombase}/;
-    proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
-    subs_filter \"http://${tourl}${toport}${tobase}\" \"\$scheme://${fromurl}${frombase}\";
-    subs_filter \"${tourl}${toport}${tobase}\" \"${fromurl}${frombase}\";"
-    if [ "${tobase}" != "${frombase}" ]; then
+    proxy_cookie_domain ${tourl} ${fromurl};"
+    if [ ${tobase}/ != ${frombase}/ ]; then
         cmd+="
-    subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;"
+    proxy_cookie_path ${tobase}/ ${frombase}/;"
     fi
     cmd+="
+    proxy_pass http://${tourl}${toport}${tobase}/;
+    #proxy_redirect http://${tourl}${toport}${tobase}/ ${frombase}/;
+    #proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase}/;
+    #proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
+    #proxy_redirect ${tobase}/ ${frombase}/;
+    #proxy_redirect ${tobase}/ \$scheme://${fromurl}${frombase}/;
+    #subs_filter \"http://${tourl}${toport}${tobase}\" \"\$scheme://${fromurl}${frombase}\";
+    #subs_filter \"${tourl}${toport}${tobase}\" \"${fromurl}${frombase}\";"
+    #if [ "${tobase}" != "${frombase}" ]; then
+    #    cmd+="
+    #subs_filter \"(src|href|action) *= *\\\"${tobase}\" \"\$1=\\\"${frombase}\" ir;"
+    #fi
+    #cmd+="
   }"
     configEntry "${fromurl}" "${cmd}"
 }
