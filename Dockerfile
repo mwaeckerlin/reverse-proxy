@@ -12,7 +12,6 @@ RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
 # DEBUG_LEVEL is one of: debug, info, notice, warn, error, crit, alert, emerg
 # logs are written to /var/log/nginx/error.log and /var/log/nginx/access.log
 ENV DEBUG_LEVEL "error"
-ENV LOG_LEVEL ""
 ENV LDAP_HOST ""
 ENV LDAP_BASE_DN ""
 ENV LDAP_BIND_DN ""
