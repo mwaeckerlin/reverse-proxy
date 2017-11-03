@@ -99,8 +99,8 @@ trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FU
 ##########################################################################################
 
 # set log level
-sed -e 's,\(error_log /var/log/nginx/error.log\).*;,\1 '"${DEBUG_LEVEL:-error}"';,g' \
-    -e 's,\(access_log /var/log/nginx/access.log\).*;,\1 combined;,g' \
+sed -e 's,\(error_log\).*;,\1 stderr '"${DEBUG_LEVEL:-error}"';,g' \
+    -e 's,\(access_log\).*;,\1 /dev/stdout combined;,g' \
     -i /etc/nginx/nginx.conf
 
 reloadNginx() {
