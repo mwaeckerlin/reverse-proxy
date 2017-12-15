@@ -271,6 +271,8 @@ function forward() {
     fi
     cmd+="
     proxy_pass http://${tourl}${toport}${tobase}/;
+    proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
+
   }"
     configEntry "${fromurl}" "${cmd}"
 }
