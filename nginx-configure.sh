@@ -172,7 +172,7 @@ server { # redirect http to https
 server { # redirect www to non-www
   listen ${HTTPS_PORT};
   server_name www.${server};
-  return 301 \$scheme://${server}:${HTTP_PORT}\$request_uri;
+  return 301 \$scheme://${server}:${HTTPS_PORT}\$request_uri;
   ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
