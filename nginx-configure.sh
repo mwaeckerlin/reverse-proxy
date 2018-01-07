@@ -215,8 +215,10 @@ function writeConfigs() {
         local target=/etc/nginx/sites-available/${server}.conf
         writeHTTP "${target}" "$server" "${conf[${server}]}}"
         if test "${LETSENCRYPT}" != "off"; then
-            installcerts "$server"
-            writeHTTPS "${target}" "$server" "${conf[${server}]}}"
+            havecerts "$server" || installcerts "$server"
+            if  havecerts "$server"; then
+                writeHTTPS "${target}" "$server" "${conf[${server}]}}"
+            fi
         fi
         cat "${target}"
         echo "===================="
