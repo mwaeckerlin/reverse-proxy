@@ -2,9 +2,7 @@
 
 ## Configuration From Config File ##
 
-You can reference a file with name `reverse-proxy.conf`. Create a configuration named `reverse-proxy.conf` that contains lines with redirect and forward configurations in the form as they are accepted by the script `nginx-configure.sh`. Try `nginx-configure.sh --help` for more information. You can use it either with the new `docker config` feature, but because this does not allow to change the file, better use is as mount or volume.
-
-e.g. : 
+You can reference a file with name `reverse-proxy.conf`. In directry, e.g. `config` create a configuration named `reverse-proxy.conf` that contains lines with redirect and forward configurations in the form as they are accepted by the script `nginx-configure.sh`. Try `nginx-configure.sh --help` for more information. You can then use it as mount or volume.
 
 The best of all: If the config file is used and it changes while the reverse proxy is running, nginx is reconfigured and the new configuration is reloaded without downtime.
 
@@ -17,20 +15,14 @@ Example for a `reverse-proxy.conf` file:
 --forward  some.more.com    192.168.16.8
 ```
 
-Use it static, unchangable with `docker config`:
+Mount the directory that contains `config` into `/config` of the docker container. If you volume in a container, you can change it dynamically from outside, in this example, file `reverse-proxy.conf` is in directory `config`:
 ```
-docker config create reverse-proxy.conf reverse-proxy.conf
-docker service create -d --config reverse-proxy.conf … mwaeckerlin/reverse-proxy
-```
-
-Better, use it as volume in a container, so you can change it dynamically from outside:
-```
-docker run -d -v $(pwd)/reverse-proxy.conf:/reverse-proxy.conf … mwaeckerlin/reverse-proxy
+docker run -d -v $(pwd)/config:/config … mwaeckerlin/reverse-proxy
 ```
 
 Best, use it as mount in a swarm service, so you can change it dynamically from outside:
 ```
-docker service create -d --mount type=bind,source=$(pwd)/reverse-proxy.conf,target=/reverse-proxy.conf … mwaeckerlin/reverse-proxy
+docker service create -d --mount type=bind,source=$(pwd)/config,target=/confic … mwaeckerlin/reverse-proxy
 ```
 
 In case of conflicts, docker `--link` and `--environment` configurations overwrite the configurations from `reverse-proxy.conf`, so better don't mix.

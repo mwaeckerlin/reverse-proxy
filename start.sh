@@ -40,17 +40,17 @@ done
 
 # run webserver
 startNginx
-if test -e /reverse-proxy.conf; then
-    updateConfig $(</reverse-proxy.conf)
+if test -e /config/reverse-proxy.conf; then
+    updateConfig $(</config/reverse-proxy.conf)
     if test "${LETSENCRYPT}" != "never"; then
         if ! pgrep cron 2>&1 > /dev/null; then
             cron -L7
         fi
     fi
     while true; do
-        inotifywait -q -e close_write /reverse-proxy.conf
+        inotifywait -q -e close_write /config/reverse-proxy.conf
         echo "**** configuration changed $(date)"
-        updateConfig $(</reverse-proxy.conf)
+        updateConfig $(</config/reverse-proxy.conf)
     done
 else
     updateConfig
