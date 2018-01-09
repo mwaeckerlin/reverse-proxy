@@ -227,17 +227,21 @@ function writeConfigs() {
 }
 
 ## forward address to another address in the form:
-##   http(s)://fromurl/frombase → http://tourl:toport/tobase
+##   http(s)://fromurl/frombase → http(s)://tourl:toport/tobase
 ## args:
 ##  $1: source in the form of fromurl/frombase
-##  $2: target in the form of tourl:toport/tobase
+##  $2: target in the form of [toscheme]tourl:toport/tobase
 ##  $3: target ip address (optional)
 function forward() {
     local source=$1
-    local target=$2
+    local target=${2#http?(s)://}
     local toip=$3
     local frombase=
     local fromurl=$source
+    local toscheme="http://"
+    if [[ "${2}" =~ ^http(s)?:// ]]; then
+        toscheme=${2%%://*}://
+    fi
     if [[ "${source}" =~ / ]]; then
         frombase=/${source#*/}
         frombase=${frombase%/}
@@ -272,8 +276,8 @@ function forward() {
     proxy_cookie_path ${tobase}/ ${frombase}/;"
     fi
     cmd+="
-    proxy_pass http://${tourl}${toport}${tobase}/;
-    proxy_redirect http://${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
+    proxy_pass ${toscheme}${tourl}${toport}${tobase}/;
+    proxy_redirect ${toscheme}${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
 
   }"
     configEntry "${fromurl}" "${cmd}"
@@ -353,7 +357,7 @@ EXAMPLE
   $0 \\
      --redirect my.web-site.com  my.website.com \\
      --forward  my.website.com   server1.intranet:8001 \\
-     --forward  another.site.com server2.intranet:8080 \\
+     --forward  another.site.com https://server2.intranet:8080 \\
      --forward  some.more.com    192.168.16.8
 
 All external requests to my.web-site.com amd www.my.web-site.com are
