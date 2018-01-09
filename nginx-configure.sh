@@ -234,7 +234,7 @@ function writeConfigs() {
 ##  $3: target ip address (optional)
 function forward() {
     local source=$1
-    local target=${2#http?(s)://}
+    local target=${2#http*://}
     local toip=$3
     local frombase=
     local fromurl=$source
