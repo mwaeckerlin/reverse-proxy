@@ -147,11 +147,12 @@ server {
       alias /acme/.well-known;
   }
   error_page 502 /502.html;
+  error_page 504 /504.html;
   error_page 404 /404.html;
-  location ~ ^/(502|404)\.html\$ {
+  location ~ ^/(502|504|404)\.html\$ {
     root /etc/nginx/error/\$lang;
   }
-  location ~ ^/(502|404)\.jpg\$ {
+  location ~ ^/(502|504|404)\.jpg\$ {
     root /etc/nginx/error;
   }
 ${conf[${server}]}}
@@ -200,11 +201,12 @@ server {
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
   error_page 502 /502.html;
+  error_page 504 /504.html;
   error_page 404 /404.html;
-  location ~ ^/(502|404)\.html\$ {
+  location ~ ^/(502|504|404)\.html\$ {
     root /etc/nginx/error/\$lang;
   }
-  location ~ ^/(502|404)\.jpg\$ {
+  location ~ ^/(502|504|404)\.jpg\$ {
     root /etc/nginx/error;
   }
 ${config}
