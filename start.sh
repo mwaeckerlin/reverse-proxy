@@ -2,6 +2,15 @@
 
 # define how to run webserver
 sed -i '/^daemon off/d' /etc/nginx/nginx.conf
+
+echo "restore configuration"
+if [ ! -z "$(ls -A /etc/nginx.original)" ]; then
+    if [ -z "$(ls -A /etc/nginx)" ]; then
+        cp -a /etc/nginx.original/* /etc/nginx/
+        chown -R www-data.www-data /etc/nginx
+    fi
+    rm -rf /etc/nginx.original
+fi
 ! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
 
 startNginx() {
