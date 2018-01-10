@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-# define how to run webserver
-sed -i '/^daemon off/d' /etc/nginx/nginx.conf
-
 echo "restore configuration"
 if [ ! -z "$(ls -A /etc/nginx.original)" ]; then
     if [ -z "$(ls -A /etc/nginx)" ]; then
@@ -11,6 +8,7 @@ if [ ! -z "$(ls -A /etc/nginx.original)" ]; then
     fi
     rm -rf /etc/nginx.original
 fi
+sed -i '/^daemon off/d' /etc/nginx/nginx.conf
 ! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
 
 startNginx() {
