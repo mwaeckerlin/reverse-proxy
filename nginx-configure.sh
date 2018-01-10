@@ -99,8 +99,8 @@ trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FU
 ##########################################################################################
 
 # set log level
-sed -e 's,\(error_log\).*;,\1 stderr '"${DEBUG_LEVEL:-error}"';,g' \
-    -e 's,\(access_log\).*;,\1 /dev/stdout combined;,g' \
+sed -e 's,\(error_log\).*;,\1 /proc/1/fd/2 '"${DEBUG_LEVEL:-error}"';,g' \
+    -e 's,\(access_log\).*;,\1 /proc/1/fd/1 combined;,g' \
     -i /etc/nginx/nginx.conf
 
 reloadNginx() {
@@ -126,6 +126,10 @@ function writeHTTP() {
     local server="$2"
     local config="$3"
     cat > "${target}" <<EOF
+map \$http_accept_language \$lang {
+  default en;
+  ~*^de de;
+}
 server { # redirect www to non-www
   listen ${HTTP_PORT};
   server_name www.${server};
@@ -141,6 +145,14 @@ server {
   server_name ${server};
   location /.well-known {
       alias /acme/.well-known;
+  }
+  error_page 502 /502.html;
+  error_page 404 /404.html;
+  location ~ ^/(502|404)\.html\$ {
+    root /etc/nginx/error/\$lang;
+  }
+  location ~ ^/(502|404)\.jpg\$ {
+    root /etc/nginx/error;
   }
 ${conf[${server}]}}
 EOF
@@ -158,6 +170,10 @@ function writeHTTPS() {
         return
     fi
     cat > "${target}" <<EOF
+map \$http_accept_language \$lang {
+  default en;
+  ~*^de de;
+}
 server { # redirect http to https
   listen ${HTTP_PORT};
   server_name ${server};
@@ -183,6 +199,14 @@ server {
   ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
+  error_page 502 /502.html;
+  error_page 404 /404.html;
+  location ~ ^/(502|404)\.html\$ {
+    root /etc/nginx/error/\$lang;
+  }
+  location ~ ^/(502|404)\.jpg\$ {
+    root /etc/nginx/error;
+  }
 ${config}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf

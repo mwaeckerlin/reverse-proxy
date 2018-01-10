@@ -2,6 +2,7 @@
 
 # define how to run webserver
 sed -i '/^daemon off/d' /etc/nginx/nginx.conf
+! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
 
 startNginx() {
     if nginx -t; then

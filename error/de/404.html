@@ -1,0 +1,45 @@
+<html>
+  <head>
+    <script>
+     setTimeout(function() {
+       location.replace(document.referrer!=window.location.href?document.referrer:'/')
+     }, 3000)
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="3; URL=/">
+    </noscript>
+    <meta charset="utf-8" />
+    <title>502 Bad Gateway</title>
+    <style>
+     html { 
+       background: url(/404.jpg) no-repeat center center fixed;
+       background-color: lightblue;
+       -webkit-background-size: cover;
+       -moz-background-size: cover;
+       -o-background-size: cover;
+       background-size: cover;
+     }
+     body {
+       position: absolute;
+       left: 50%;
+       top: 50%;
+       transform: translate(-50%, -50%);
+     }
+     body div {
+       background-color: lightgray;
+       padding: 1em;
+       border: 1px solid black;
+     }
+    </style>
+  </head>
+  <body>
+    <div>
+
+      <h1>Fehlgeleitet</h1>
+
+      <p>Was auch immer Sie suchen, hier ist es leider nicht. Sie
+      werden in Kürze umgeleitet.</p>
+
+    </div>
+  </body>
+</html>
