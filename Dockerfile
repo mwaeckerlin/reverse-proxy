@@ -25,4 +25,4 @@ ENV LDAP_REALM "Restricted"
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
 ENTRYPOINT ["/start.sh"]
 
-VOLUMES /etc/nginx
+VOLUME /etc/nginx
