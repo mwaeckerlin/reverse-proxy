@@ -189,7 +189,7 @@ server { # redirect http to https
 server { # redirect www to non-www
   listen ${HTTPS_PORT};
   server_name www.${server};
-  add_header Strict-Transport-Security: max-age=15552000 always;
+  add_header Strict-Transport-Security max-age=15552000 always;
   return 301 \$scheme://${server}:${HTTPS_PORT}\$request_uri;
   ssl on;
   ssl_certificate $(certfile $server);
@@ -198,7 +198,7 @@ server { # redirect www to non-www
 server {
   listen ${HTTPS_PORT};
   server_name ${server};
-  add_header Strict-Transport-Security: max-age=15552000 always;
+  add_header Strict-Transport-Security max-age=15552000 always;
   ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
