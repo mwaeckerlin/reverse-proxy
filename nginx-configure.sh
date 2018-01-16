@@ -238,7 +238,7 @@ function writeConfigs() {
     test -d $tst || mkdir $tst
     for server in ${!conf[@]}; do
         local cmp="${tst}/${server}"
-        echo "${conf[${server}]}}" > "${cmp}.current"
+        echo "${conf[${server}]}" > "${cmp}.current"
         if test -e "${cmp}.last" && diff -q "${cmp}.current" "${cmp}.last" && grep -q ssl_certificate /etc/nginx/sites-available/${server}.conf; then
             # configuration has not changed
             echo "---- not changed: $server"
@@ -246,11 +246,11 @@ function writeConfigs() {
         fi
         echo "========== $server"
         local target=/etc/nginx/sites-available/${server}.conf
-        writeHTTP "${target}" "$server" "${conf[${server}]}}"
+        writeHTTP "${target}" "$server" "${conf[${server}]}"
         if test "${LETSENCRYPT}" != "off"; then
             havecerts "$server" || installcerts "$server"
             if  havecerts "$server"; then
-                writeHTTPS "${target}" "$server" "${conf[${server}]}}"
+                writeHTTPS "${target}" "$server" "${conf[${server}]}"
             fi
         fi
         cat "${target}"

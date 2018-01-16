@@ -1,8 +1,8 @@
 #!/bin/bash -e
 
-echo "restore configuration"
 if [ ! -z "$(ls -A /etc/nginx.original)" ]; then
     if [ -z "$(ls -A /etc/nginx)" ]; then
+        echo "restore configuration"
         cp -a /etc/nginx.original/* /etc/nginx/
         chown -R www-data.www-data /etc/nginx
     fi
