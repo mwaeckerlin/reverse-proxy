@@ -143,9 +143,6 @@ server { # redirect www to non-www
 server {
   listen ${HTTP_PORT};
   server_name ${server};
-  location /.well-known {
-      alias /acme/.well-known;
-  }
   error_page 502 /502.html;
   error_page 504 /504.html;
   error_page 404 /404.html;
@@ -155,7 +152,11 @@ server {
   location ~ ^/(502|504|404)\.jpg\$ {
     root /etc/nginx/error;
   }
-${conf[${server}]}}
+${conf[${server}]}
+  location /.well-known {
+      alias /acme/.well-known;
+  }
+}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
     reloadNginx
@@ -212,6 +213,10 @@ server {
     root /etc/nginx/error;
   }
 ${config}
+  location /.well-known {
+      alias /acme/.well-known;
+  }
+}
 EOF
     test -e /etc/nginx/sites-enabled/${server}.conf || ln -s "${target}" /etc/nginx/sites-enabled/${server}.conf
     reloadNginx
@@ -321,7 +326,7 @@ function redirect() {
     local target=$2
     local server=${source%%/*}
     if test "${server}" != "${source}"; then
-        cmd="rewrite ^/${source%/}/(.*)$ \$scheme://${target%/}/\$1 redirect;"
+        cmd="rewrite ^/${source#${server}/}/(.*)$ \$scheme://${target%/}/\$1 redirect;"
     else
         cmd="rewrite ^/$ \$scheme://${target%/}/ redirect;"
     fi
