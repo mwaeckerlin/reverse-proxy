@@ -326,7 +326,7 @@ function redirect() {
     local target=$2
     local server=${source%%/*}
     if test "${server}" != "${source}"; then
-        cmd="rewrite ^/${source#${server}/}/(.*)$ \$scheme://${target%/}/\$1 redirect;"
+        cmd="rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 redirect;"
     else
         cmd="rewrite ^/$ \$scheme://${target%/}/ redirect;"
     fi
