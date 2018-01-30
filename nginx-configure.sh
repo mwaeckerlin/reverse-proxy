@@ -298,7 +298,19 @@ function forward() {
     if [ -z "$toip" ]; then
         toip=$(getent hosts ${tourl} | sed -n '1s, .*,,p')
     fi
-    local cmd="location ${frombase}/ {
+    local cmd="location ${frombase}/ {"
+    if test -e /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd; then
+        cmd+="
+    auth_basic \"${BASIC_AUTH_REALM:-${fromurl}/${frombase}}\";
+    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd;"
+    else
+        if test -e /etc/nginx/basic-auth/${fromurl}.htpasswd; then
+            cmd+="
+    auth_basic \"${BASIC_AUTH_REALM:-${fromurl}}\";
+    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}.htpasswd;"
+        fi
+    fi
+    cmd+="
     include proxy.conf;
     if (\$request_method ~ ^COPY\$) {
       rewrite $tobase/(.*) $frombase/\$1 break;
@@ -326,9 +338,9 @@ function redirect() {
     local target=$2
     local server=${source%%/*}
     if test "${server}" != "${source}"; then
-        cmd="rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 redirect;"
+        cmd="rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 permanent;"
     else
-        cmd="rewrite ^/$ \$scheme://${target%/}/ redirect;"
+        cmd="rewrite ^/$ \$scheme://${target%/}/ permanent;"
     fi
     configEntry "${server}" "${cmd}"
 }

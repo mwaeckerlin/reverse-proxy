@@ -1,6 +1,8 @@
-# Docker Image: Virtual Hosts Reverse Proxy #
+Docker Image: Virtual Hosts Reverse Proxy
+=========================================
 
-## Configuration From Config File ##
+Configuration From Config File
+------------------------------
 
 You can reference a file with name `reverse-proxy.conf`. In directry, e.g. `config` create a configuration named `reverse-proxy.conf` that contains lines with redirect and forward configurations in the form as they are accepted by the script `nginx-configure.sh`. Try `nginx-configure.sh --help` for more information. You can then use it as mount or volume.
 
@@ -27,7 +29,8 @@ docker service create -d --mount type=bind,source=$(pwd)/config,target=/confic â
 
 In case of conflicts, docker `--link` and `--environment` configurations overwrite the configurations from `reverse-proxy.conf`, so better don't mix.
 
-## Generic Configuration and Secret Files ##
+Generic Configuration and Secret Files
+--------------------------------------
 
 Any configuration or secret file that ends in `*.conf.sh` is sourced
 at startup, so you can add your environment variables into these
@@ -47,19 +50,22 @@ EOF
 ```
 
 
-## Redirect URL to Linked Container ##
+Redirect URL to Linked Container
+--------------------------------
 
 On your computer start any number of services, then start a `mwaeckerlin/reverse-proxy` and link to all your docker services. The link alias must be the FQDN, the fully qualified domain name of your service. For example your URL is `wordpress.myhost.org` and wordpress runs in a docker container named `mysite`:
 
         docker run [...] -l mysite:wordpress.myhost.org mwaeckerlin/reverse-proxy
 
-## If a Service Has More Than One Port ##
+If a Service Has More Than One Port
+-----------------------------------
 
 Normally the port is detected automatically. But if there are more than one open ports, you must declare which port you want to direct to. Jenkins for example exposes the ports 8080 and 5000. You want to forward to port 8080. For this you specify an additional environment variable that contains the URL in upper case, postfixed by `_TO_PORT`, e.g. redirect URL `jenkins.myhost.org` to port 8080 of container `jenkins`:
 
         docker run [...] -l jenkins:jenkins.myhost.org -e JENKINS.MYHOST.ORG_TO_PORT=8080 mwaeckerlin/reverse-proxy
 
-## Forward or Redirect to Other Host ##
+Forward or Redirect to Other Host
+---------------------------------
 
 In addition, you can add environment variables that start with `redirect-` or `forward-` for an additional redirect or an additional forward, e.g. the following redirects from your old host at `old-host.com` to your new host at `new-host.org`, similary `-e forward-old-host.com=new-host.org` adds a forward:
 
@@ -67,23 +73,15 @@ In addition, you can add environment variables that start with `redirect-` or `f
 
 For special characters in the variable name (not in the value) use hexadecimal ASCII code, as in URL encoding, so if you need to append a path, use `%2f` instead of slash `/` in the path.
 
-## The Dummy-www-Prefix ##
+The Dummy-www-Prefix
+--------------------
 
 Rules to redirect the dummy-www-prefix to the host without prefix are automatically added, so don't prepend `www.` to your hostnames.
 
-## SSL Certificates ##
+SSL Certificates
+----------------
 
-### The Old Way: Separate Certificate Installation ###
-
-Add a volume with your certificates in `/etc/ssl/private`, two files per URL, the certificate and the key, named <url>.crt and <url>.key. If found, it is automatically configured and http on port 80 is redirected to https on port 443.
-
-You can use `docker cp` to put certificates into the container, e.g. for `example.com`:
-
-    docker cp example.com.crt example.com.key reverse-proxy-container:/etc/ssl/private/
-
-### The New Way: Let's Encrypt ###
-
-By default the reverse proxy automatically gets new SSL certificates from [Let's Encrypt](https://letsencrypt.org/). You can mix automated generation of Let's Encrypt with pre-installed certificates: The certificates, that are already available in `/etc/ssl/private` will not be overwritten by the automated method.
+By default the reverse proxy automatically gets new SSL certificates from [Let's Encrypt](https://letsencrypt.org/), unless you configure `LETSENCRYPT=off`
 
 Configuration:
 
@@ -97,12 +95,23 @@ Configuration:
 
 So, if you don't care, all your sites will automatically be encrypted.
 
-## More Configurations ##
+Basic Authentication
+--------------------
+
+Enable basic authentication for a server by adding a file named `/etc/nginx/basic-auth/${server}.htpasswd`, where `${server}` is the name of the server, e.g. add `/etc/nginx/basic-auth/example.com.htpasswd`. The file must contain an apache compatible password file. This file can be created e.g. using `htpasswd /etc/nginx/basic-auth/example.com.htpasswd username`.
+
+To only restrict access in a configured sub-path, or to have duifferent users in a sub-path, you can create a file in `/etc/nginx/basic-auth/${server}/${basepath}.htpasswd`, e.g. `/etc/nginx/basic-auth/example.com/private.htpasswd`. The sub-path is only evaluated, if it appears in a forward or redirect configuration.
+
+The realm is either the server/sub-path name or you can overwrite it in variable `BASIC_AUTH_REALM`.
+
+More Configurations
+-------------------
 
 The following additional environment variables can be configured:
  - `DEBUG_LEVEL`: set debug level to one of: `debug`, `info`, `notice`, `warn`, `error`, `crit`, `alert`, `emerg`
 
-## Examples ##
+Examples
+--------
 
 ### Example ###
 
