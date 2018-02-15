@@ -27,4 +27,6 @@ ENV BASIC_AUTH_REALM ""
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
 ENTRYPOINT ["/start.sh"]
 
-VOLUME /etc/nginx
+VOLUME /etc/nginx/sites-available
+VOLUME /etc/nginx/sites-enabled
+VOLUME /etc/nginx/basic-auth
