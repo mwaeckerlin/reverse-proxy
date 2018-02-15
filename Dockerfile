@@ -13,8 +13,6 @@ ADD error /etc/nginx/error
 ADD nginx-configure.sh /nginx-configure.sh
 ADD start.sh /start.sh
 
-RUN mv /etc/nginx /etc/nginx.original
-
 # DEBUG_LEVEL is one of: debug, info, notice, warn, error, crit, alert, emerg
 # logs are written to /var/log/nginx/error.log and /var/log/nginx/access.log
 ENV DEBUG_LEVEL "error"
