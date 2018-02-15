@@ -100,7 +100,7 @@ Basic Authentication
 
 Enable basic authentication for a server by adding a file named `/etc/nginx/basic-auth/${server}.htpasswd`, where `${server}` is the name of the server, e.g. add `/etc/nginx/basic-auth/example.com.htpasswd`. The file must contain an apache compatible password file. This file can be created e.g. using `htpasswd /etc/nginx/basic-auth/example.com.htpasswd username`.
 
-To only restrict access in a configured sub-path, or to have duifferent users in a sub-path, you can create a file in `/etc/nginx/basic-auth/${server}/${basepath}.htpasswd`, e.g. `/etc/nginx/basic-auth/example.com/private.htpasswd`. The sub-path is only evaluated, if it appears in a forward or redirect configuration.
+To only restrict access in a configured sub-path, or to have different users in a sub-path, you can create a file in `/etc/nginx/basic-auth/${server}/${basepath}.htpasswd`, e.g. `/etc/nginx/basic-auth/example.com/private.htpasswd`. The sub-path is only evaluated, if it appears in a forward or redirect configuration.
 
 The realm is either the server/sub-path name or you can overwrite it in variable `BASIC_AUTH_REALM`.
 
