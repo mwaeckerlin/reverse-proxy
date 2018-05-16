@@ -1,7 +1,7 @@
 FROM mwaeckerlin/letsencrypt
 MAINTAINER mwaeckerlin
 
-RUN apk add nginx inotify-tools
+RUN apk add nginx inotify-tools openssl
 
 ADD proxy.conf /etc/nginx/proxy.conf
 RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
