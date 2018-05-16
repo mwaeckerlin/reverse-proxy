@@ -1,10 +1,8 @@
 FROM mwaeckerlin/letsencrypt
 MAINTAINER mwaeckerlin
 
-RUN apt-get -y update
-RUN apt-get -y install nginx nginx-extras inotify-tools
+RUN apk add nginx inotify-tools
 RUN rm -r /usr/share/nginx
-RUN usermod -a -G ssl-cert www-data
 
 ADD proxy.conf /etc/nginx/proxy.conf
 RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
