@@ -51,5 +51,5 @@ if test -e /config/reverse-proxy.conf; then
 else
     updateConfig
     /letsencrypt.start.sh
-    sleep infinity
+    while true; do sleep 1000d; done
 fi

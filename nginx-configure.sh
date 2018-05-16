@@ -236,7 +236,7 @@ function forward() {
     local frombase=
     local fromurl=$source
     local toscheme="http://"
-    if [[ "${2}" =~ ^http(s)?:// ]]; then
+    if [[ "${2}" =~ ^http:// ]] || [[ "${2}" =~ ^https:// ]]; then
         toscheme=${2%%://*}://
     fi
     if [[ "${source}" =~ / ]]; then
