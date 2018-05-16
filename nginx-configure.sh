@@ -1,9 +1,11 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 . /letsencrypt-config.sh
 
 # setup nginx configuration from server list
-declare -A conf
+CONF=/var/tmp/nginx
+test -d ${CONF} || mkdir -p ${CONF}
+rm -rf ${CONF}/* || true
 
 # internal use only
 append_msg() {
@@ -68,34 +70,6 @@ run() {
     fi
 }
 
-# error handler
-function traperror() {
-    set +x
-    local err=($1) # error status
-    local line="$2" # LINENO
-    local linecallfunc="$3"
-    local command="$4"
-    local funcstack="$5"
-    for e in ${err[@]}; do
-        if test -n "$e" -a "$e" != "0"; then
-            error "line $line - command '$command' exited with status: $e (${err[@]})"
-            if [ "${funcstack}" != "main" -o "$linecallfunc" != "0" ]; then
-                echo -n "   ... error at ${funcstack} "
-                if [ "$linecallfunc" != "" ]; then
-                    echo -n "called at line $linecallfunc"
-                fi
-                echo
-            fi
-            exit $e
-        fi
-    done
-    success
-    exit 0
-}
-
-# catch errors
-trap 'traperror "$? ${PIPESTATUS[@]}" $LINENO $BASH_LINENO "$BASH_COMMAND" "${FUNCNAME[@]}" "${FUNCTION}"' ERR SIGINT INT TERM EXIT
-
 ##########################################################################################
 
 # set log level
@@ -108,23 +82,14 @@ reloadNginx() {
         if nginx -t; then
             nginx -s reload
         else
-            echo "**** ERROR: Configuration failed when setting up $server" 1>&2
+            error "configuration failed when setting up $server"
         fi
     fi
-}
-
-# setup an nginx configuration entry
-function configEntry() {
-    local server=$1
-    local cmd=$2
-    conf["${server}"]+="  $cmd
-"
 }
 
 function writeHTTP() {
     local target="$1"
     local server="$2"
-    local config="$3"
     cat > "${target}" <<EOF
 map \$http_accept_language \$lang {
   default en;
@@ -152,7 +117,7 @@ server {
   location ~ ^/(502|504|404)\.jpg\$ {
     root /etc/nginx/error;
   }
-${conf[${server}]}
+$(cat "${CONF}/${server}")
   location /.well-known {
       alias /acme/.well-known;
   }
@@ -165,9 +130,8 @@ EOF
 function writeHTTPS() {
     local target="$1"
     local server="$2"
-    local config="$3"
     if ! test -e "$(certfile $server)" -a -e "$(keyfile $server)"; then
-        echo "**** ERROR: fallback to http, certificates not found for $server"
+        error "fallback to http, certificates not found for $server"
         writeHTTP $*
         return
     fi
@@ -212,7 +176,7 @@ server {
   location ~ ^/(502|504|404)\.jpg\$ {
     root /etc/nginx/error;
   }
-${config}
+$(cat "${CONF}/${server}")
   location /.well-known {
       alias /acme/.well-known;
   }
@@ -225,37 +189,37 @@ EOF
 function writeConfigs() {
     local server
     local tst=/var/tmp/nginx
-    echo "---- configured servers: ${!conf[@]}"
+    echo "---- configured servers: $(ls -1 ${CONF})"
     test -d "$tst" || mkdir -p "$tst"
     for file in /etc/nginx/sites-{available,enabled}/*; do
         test -e "$file" || break
         server=${file##*/}
         server=${server%.conf}
         # remove server if no more configured
-        test "${conf[$server]+isset}" || \
+        test -e "${CONF}/${server}" || \
             ( rm -r "$file" && echo "---- configuration removed for server ${server}" )
     done
     test -d $tst || mkdir $tst
-    for server in ${!conf[@]}; do
-        local cmp="${tst}/${server}"
-        echo "${conf[${server}]}" > "${cmp}.current"
-        if test -e "${cmp}.last" && diff -q "${cmp}.current" "${cmp}.last" && grep -q ssl_certificate /etc/nginx/sites-available/${server}.conf; then
+    for server in $(ls -1 ${CONF}); do
+        local target=/etc/nginx/sites-available/${server}.conf
+        if test -e "${CONF}.last/${server}" \
+                && diff -q "${CONF}/${server}" "${CONF}.last/${server}" \
+                && grep -q ssl_certificate "${target}"; then
             # configuration has not changed
             echo "---- not changed: $server"
             continue
         fi
         echo "========== $server"
-        local target=/etc/nginx/sites-available/${server}.conf
-        writeHTTP "${target}" "$server" "${conf[${server}]}"
+        writeHTTP "${target}" "$server"
         if test "${LETSENCRYPT}" != "off"; then
             havecerts "$server" || installcerts "$server"
-            if  havecerts "$server"; then
-                writeHTTPS "${target}" "$server" "${conf[${server}]}"
-            fi
+        fi
+        if havecerts "$server"; then
+            writeHTTPS "${target}" "$server"
         fi
         cat "${target}"
         echo "===================="
-        mv "${cmp}.current" "${cmp}.last"
+        mv "${CONF}/${server}" "${CONF}.last/${server}"
     done
 }
 
@@ -298,34 +262,39 @@ function forward() {
     if [ -z "$toip" ]; then
         toip=$(getent hosts ${tourl} | sed -n '1s, .*,,p')
     fi
-    local cmd="location ${frombase}/ {"
+    cat >> "${CONF}/${fromurl}" <<EOF
+  location ${frombase}/ {
+EOF
     if test -e /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd; then
-        cmd+="
+        cat >> "${CONF}/${fromurl}" <<EOF
     auth_basic \"${BASIC_AUTH_REALM:-${fromurl}/${frombase}}\";
-    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd;"
+    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd;
+EOF
     else
         if test -e /etc/nginx/basic-auth/${fromurl}.htpasswd; then
-            cmd+="
+            cat >> "${CONF}/${fromurl}" <<EOF
     auth_basic \"${BASIC_AUTH_REALM:-${fromurl}}\";
-    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}.htpasswd;"
+    auth_basic_user_file /etc/nginx/basic-auth/${fromurl}.htpasswd;
+EOF
         fi
     fi
-    cmd+="
+    cat >> "${CONF}/${fromurl}" <<EOF
     include proxy.conf;
     if (\$request_method ~ ^COPY\$) {
       rewrite $tobase/(.*) $frombase/\$1 break;
     }
-    proxy_cookie_domain ${tourl} ${fromurl};"
+    proxy_cookie_domain ${tourl} ${fromurl};
+EOF
     if [ ${tobase}/ != ${frombase}/ ]; then
-        cmd+="
-    proxy_cookie_path ${tobase}/ ${frombase}/;"
+        cat >> "${CONF}/${fromurl}" <<EOF
+    proxy_cookie_path ${tobase}/ ${frombase}/;
+EOF
     fi
-    cmd+="
+    cat >> "${CONF}/${fromurl}" <<EOF
     proxy_pass ${toscheme}${tourl}${toport}${tobase}/;
     proxy_redirect ${toscheme}${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
-
-  }"
-    configEntry "${fromurl}" "${cmd}"
+  }
+EOF
 }
 
 ## redirects address to another address in the form:
@@ -338,11 +307,14 @@ function redirect() {
     local target=$2
     local server=${source%%/*}
     if test "${server}" != "${source}"; then
-        cmd="rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 permanent;"
+        cat >> "${CONF}/${server}" <<EOF
+  rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 permanent;
+EOF
     else
-        cmd="rewrite ^/$ \$scheme://${target%/}/ permanent;"
+        cat >> "${CONF}/${server}" <<EOF
+  rewrite ^/$ \$scheme://${target%/}/ permanent;
+EOF
     fi
-    configEntry "${server}" "${cmd}"
 }
 
 ################################################################################################

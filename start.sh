@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 sed -i '/^daemon off/d' /etc/nginx/nginx.conf
 ! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
@@ -42,11 +42,7 @@ test -e /etc/ssl/certs/dhparam.pem || \
 startNginx
 if test -e /config/reverse-proxy.conf; then
     updateConfig $(</config/reverse-proxy.conf)
-    if test "${LETSENCRYPT}" != "never"; then
-        if ! pgrep cron 2>&1 > /dev/null; then
-            cron -L7
-        fi
-    fi
+    /letsencrypt.start.sh
     while true; do
         inotifywait -q -e close_write /config/reverse-proxy.conf
         echo "**** configuration changed $(date)"
@@ -54,10 +50,6 @@ if test -e /config/reverse-proxy.conf; then
     done
 else
     updateConfig
-    if test "${LETSENCRYPT}" != "never"; then
-        if ! pgrep cron 2>&1 > /dev/null; then
-            cron -L7
-        fi
-    fi
+    /letsencrypt.start.sh
     sleep infinity
 fi
