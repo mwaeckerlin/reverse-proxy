@@ -3,7 +3,7 @@
 . /letsencrypt-config.sh
 
 # setup nginx configuration from server list
-CONF=/var/tmp/nginx
+CONF=/var/tmp/nginx/servers
 test -d ${CONF} || mkdir -p ${CONF}
 rm -rf ${CONF}/* || true
 
@@ -280,6 +280,7 @@ EOF
     fi
     cat >> "${CONF}/${fromurl}" <<EOF
     include proxy.conf;
+    include ssl.conf;
     if (\$request_method ~ ^COPY\$) {
       rewrite $tobase/(.*) $frombase/\$1 break;
     }
