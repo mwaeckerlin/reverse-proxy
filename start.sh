@@ -36,7 +36,7 @@ for f in /*.conf.sh /run/secrets/*.conf.sh; do
 done
 
 test -e /etc/ssl/certs/dhparam.pem || \
-    openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+    openssl dhparam -out /etc/letsencrypt/dhparam.pem 4096
 
 # run webserver
 startNginx
