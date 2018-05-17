@@ -41,12 +41,12 @@ test -e /etc/ssl/certs/dhparam.pem || \
 # run webserver
 startNginx
 if test -e /config/reverse-proxy.conf; then
-    updateConfig $(</config/reverse-proxy.conf)
+    updateConfig $(cat /config/reverse-proxy.conf)
     /letsencrypt.start.sh
     while true; do
         inotifywait -q -e close_write /config/reverse-proxy.conf
         echo "**** configuration changed $(date)"
-        updateConfig $(</config/reverse-proxy.conf)
+        updateConfig $(cat /config/reverse-proxy.conf)
     done
 else
     updateConfig

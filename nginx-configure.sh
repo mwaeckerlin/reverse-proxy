@@ -188,9 +188,7 @@ EOF
 
 function writeConfigs() {
     local server
-    local tst=/var/tmp/nginx
     echo "---- configured servers: $(ls -1 ${CONF})"
-    test -d "$tst" || mkdir -p "$tst"
     for file in /etc/nginx/sites-{available,enabled}/*; do
         test -e "$file" || break
         server=${file##*/}
@@ -199,7 +197,6 @@ function writeConfigs() {
         test -e "${CONF}/${server}" || \
             ( rm -r "$file" && echo "---- configuration removed for server ${server}" )
     done
-    test -d $tst || mkdir $tst
     for server in $(ls -1 ${CONF}); do
         local target=/etc/nginx/sites-available/${server}.conf
         if test -e "${CONF}.last/${server}" \
