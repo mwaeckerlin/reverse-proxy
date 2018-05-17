@@ -219,6 +219,7 @@ function writeConfigs() {
         fi
         cat "${target}"
         echo "===================="
+	test -d "${CONF}.last" || mkdir -p "${CONF}.last"
         mv "${CONF}/${server}" "${CONF}.last/${server}"
     done
 }
@@ -236,6 +237,7 @@ function forward() {
     local frombase=
     local fromurl=$source
     local toscheme="http://"
+    echo "---- forward: $*"
     if [[ "${2}" =~ ^http:// ]] || [[ "${2}" =~ ^https:// ]]; then
         toscheme=${2%%://*}://
     fi
@@ -307,6 +309,7 @@ function redirect() {
     local source=$1
     local target=$2
     local server=${source%%/*}
+    echo "---- redirect: $*"
     if test "${server}" != "${source}"; then
         cat >> "${CONF}/${server}" <<EOF
   rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 permanent;
