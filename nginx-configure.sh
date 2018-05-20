@@ -235,26 +235,26 @@ function forward() {
     local fromurl=$source
     local toscheme="http://"
     echo "---- forward: $*"
-    if [[ "${2}" =~ ^http:// ]] || [[ "${2}" =~ ^https:// ]]; then
+    if test "${2}" != "${2#http://}" -o  "${2}" != "${2#https://}"; then
         toscheme=${2%%://*}://
     fi
-    if [[ "${source}" =~ / ]]; then
+    if test "${source}" != "${source/\//}"; then
         frombase=/${source#*/}
         frombase=${frombase%/}
         fromurl=${source%%/*}
     fi
-    if [[ "${fromurl}" =~ : ]]; then
+    if test "${fromurl}" != "${fromurl/:/}"; then
         fromurl=${fromurl%%:*}
     fi
     local tobase=
     local toport=
     local tourl=$target
-    if [[ "${target}" =~ / ]]; then
+    if test "${target}" != "${target/\//}"; then
         tobase=/${target#*/}
         tobase=${tobase%/}
         tourl=${target%%/*}
     fi
-    if [[ "${tourl}" =~ : ]]; then
+    if test "${tourl}" != "${tourl/\//}"; then
         toport=:${tourl#*:}
         tourl=${tourl%%:*}
     fi
