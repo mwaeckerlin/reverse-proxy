@@ -238,23 +238,23 @@ function forward() {
     if test "${2}" != "${2#http://}" -o  "${2}" != "${2#https://}"; then
         toscheme=${2%%://*}://
     fi
-    if test "${source}" != "${source/\//}"; then
+    if test "${source}" != "${source%%/*}"; then
         frombase=/${source#*/}
         frombase=${frombase%/}
         fromurl=${source%%/*}
     fi
-    if test "${fromurl}" != "${fromurl/:/}"; then
+    if test "${fromurl}" != "${fromurl%%:*}"; then
         fromurl=${fromurl%%:*}
     fi
     local tobase=
     local toport=
     local tourl=$target
-    if test "${target}" != "${target/\//}"; then
+    if test "${target}" != "${target%%/*}"; then
         tobase=/${target#*/}
         tobase=${tobase%/}
         tourl=${target%%/*}
     fi
-    if test "${tourl}" != "${tourl/\//}"; then
+    if test "${tourl}" != "${tourl%%:*}"; then
         toport=:${tourl#*:}
         tourl=${tourl%%:*}
     fi
