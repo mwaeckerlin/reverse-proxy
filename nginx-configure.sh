@@ -279,7 +279,6 @@ EOF
     fi
     cat >> "${CONF}/${fromurl}" <<EOF
     include proxy.conf;
-    include ssl.conf;
     if (\$request_method ~ ^COPY\$) {
       rewrite $tobase/(.*) $frombase/\$1 break;
     }

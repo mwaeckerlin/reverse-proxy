@@ -6,7 +6,7 @@ RUN apk add nginx inotify-tools openssl \
     && chown $WWWUSER /run/nginx
 
 ADD proxy.conf /etc/nginx/proxy.conf
-ADD ssl.conf /etc/nginx/ssl.conf
+ADD ssl.conf /etc/nginx/conf.d/ssl.conf
 ADD nginx.conf /etc/nginx/nginx.conf
 RUN sed -i 's/\(client_max_body_size\).*;/\1 0;/' /etc/nginx/proxy.conf
 
