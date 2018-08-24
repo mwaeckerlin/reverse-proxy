@@ -29,3 +29,4 @@ ENTRYPOINT ["/start.sh"]
 VOLUME /etc/nginx/sites-available
 VOLUME /etc/nginx/sites-enabled
 VOLUME /etc/nginx/basic-auth
+VOLUME /etc/nginx/client-ssl

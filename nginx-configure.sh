@@ -87,6 +87,16 @@ reloadNginx() {
     fi
 }
 
+function clientssl() {
+    if test -e /etc/nginx/client-ssl/client-ca.crt; then
+        cat <<EOF
+
+  ssl_client_certificate  /etc/nginx/client-ssl/client-ca.crt;
+  ssl_verify_client on;
+EOF
+    fi
+}
+
 function writeHTTP() {
     local target="$1"
     local server="$2"
@@ -169,7 +179,7 @@ server {
   ssl_certificate_key $(keyfile $server);
   error_page 502 /502.html;
   error_page 504 /504.html;
-  error_page 404 /404.html;
+  error_page 404 /404.html;$(clientssl)
   location ~ ^/(502|504|404)\.html\$ {
     root /etc/nginx/error/\$lang;
   }
