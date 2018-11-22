@@ -112,7 +112,7 @@ server { # redirect www to non-www
       alias /acme/.well-known;
   }
   location / {
-    return 301 http://${server}:${HTTP_PORT}\$request_uri;
+    return 302 http://${server}:${HTTP_PORT}\$request_uri;
   }
 }
 server {
@@ -158,14 +158,14 @@ server { # redirect http to https
       alias /acme/.well-known;
   }
   location / {
-    return 301 https://${server}:${HTTPS_PORT}\$request_uri;
+    return 302 https://${server}:${HTTPS_PORT}\$request_uri;
   }
 }
 server { # redirect www to non-www
   listen ${HTTPS_PORT} ssl http2;
   server_name www.${server};
   add_header Strict-Transport-Security max-age=15552000 always;
-  return 301 \$scheme://${server}:${HTTPS_PORT}\$request_uri;
+  return 302 \$scheme://${server}:${HTTPS_PORT}\$request_uri;
   ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
@@ -300,8 +300,8 @@ EOF
 EOF
     fi
     cat >> "${CONF}/${fromurl}" <<EOF
-    proxy_pass ${toscheme}${tourl}${toport}${tobase}/;
-    proxy_redirect ${toscheme}${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
+    proxy_pass ${toscheme}${tourl}${toport}${tobase};
+    proxy_redirect ${toscheme}${tourl}${toport}${tobase} \$scheme://${fromurl}${frombase};
   }
 EOF
 }
