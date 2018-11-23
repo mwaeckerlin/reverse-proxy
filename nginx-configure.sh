@@ -300,8 +300,18 @@ EOF
 EOF
     fi
     cat >> "${CONF}/${fromurl}" <<EOF
-    proxy_pass ${toscheme}${tourl}${toport}${tobase};
-    proxy_redirect ${toscheme}${tourl}${toport}${tobase} \$scheme://${fromurl}${frombase};
+    proxy_pass ${toscheme}${tourl}${toport}${tobase}/;
+EOF
+    if echo "${PROXY_REDIRECT_OFF}" | egrep -q '^\b'"${fromurl//./\\.}${frombase}"'\b'; then
+        cat >> "${CONF}/${fromurl}" <<EOF
+    proxy_redirect off;
+EOF
+    else
+        cat >> "${CONF}/${fromurl}" <<EOF
+    proxy_redirect ${toscheme}${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
+EOF
+    fi
+    cat >> "${CONF}/${fromurl}" <<EOF
   }
 EOF
 }
@@ -348,7 +358,7 @@ OPTIONS
 ENVIRONMENT
 
   Environment variables are evaluated and converted to redirect and
-  forward requests, if they are defined in the following forman, and
+  forward requests, if they are defined in the following format, and
   if they are url encoded:
 
   redirect-FROM=TO

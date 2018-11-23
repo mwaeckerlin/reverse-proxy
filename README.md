@@ -29,6 +29,7 @@ docker service create -d --mount type=bind,source=$(pwd)/config,target=/confic â
 
 In case of conflicts, docker `--link` and `--environment` configurations overwrite the configurations from `reverse-proxy.conf`, so better don't mix.
 
+
 Generic Configuration and Secret Files
 --------------------------------------
 
@@ -57,12 +58,14 @@ On your computer start any number of services, then start a `mwaeckerlin/reverse
 
         docker run [...] -l mysite:wordpress.myhost.org mwaeckerlin/reverse-proxy
 
+
 If a Service Has More Than One Port
 -----------------------------------
 
 Normally the port is detected automatically. But if there are more than one open ports, you must declare which port you want to direct to. Jenkins for example exposes the ports 8080 and 5000. You want to forward to port 8080. For this you specify an additional environment variable that contains the URL in upper case, postfixed by `_TO_PORT`, e.g. redirect URL `jenkins.myhost.org` to port 8080 of container `jenkins`:
 
         docker run [...] -l jenkins:jenkins.myhost.org -e JENKINS.MYHOST.ORG_TO_PORT=8080 mwaeckerlin/reverse-proxy
+
 
 Forward or Redirect to Other Host
 ---------------------------------
@@ -73,10 +76,20 @@ In addition, you can add environment variables that start with `redirect-` or `f
 
 For special characters in the variable name (not in the value) use hexadecimal ASCII code, as in URL encoding, so if you need to append a path, use `%2f` instead of slash `/` in the path.
 
+
+Don't Write Proxy-Redirect
+--------------------------
+
+By default, nginx variable `proxy_redirect` is configured automatically. If you don't want this and if you want `proxy_redirect off`, then set environment variable `PROXY_REDIRECT_OFF` to a space separated list of urls (just host and path, without scheme) with this configuration. When I tried to install [NodeBB](https://nodebb.org), I noticed that they require this configuartion. Example:
+
+    docker run [...] -e PROXY_REDIRECT_OFF='forum.example.com other.forum.org/path' mwaeckerlin/reverse-proxy
+
+
 The Dummy-www-Prefix
 --------------------
 
 Rules to redirect the dummy-www-prefix to the host without prefix are automatically added, so don't prepend `www.` to your hostnames.
+
 
 SSL Certificates
 ----------------
@@ -95,6 +108,7 @@ Configuration:
 
 So, if you don't care, all your sites will automatically be encrypted.
 
+
 Basic Authentication
 --------------------
 
@@ -104,11 +118,13 @@ To only restrict access in a configured sub-path, or to have different users in 
 
 The realm is either the server/sub-path name or you can overwrite it in variable `BASIC_AUTH_REALM`.
 
+
 More Configurations
 -------------------
 
 The following additional environment variables can be configured:
  - `DEBUG_LEVEL`: set debug level to one of: `debug`, `info`, `notice`, `warn`, `error`, `crit`, `alert`, `emerg`
+
 
 Examples
 --------
