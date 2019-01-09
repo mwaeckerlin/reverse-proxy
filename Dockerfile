@@ -1,7 +1,7 @@
 FROM mwaeckerlin/letsencrypt
 MAINTAINER mwaeckerlin
 
-RUN apk add nginx inotify-tools openssl \
+RUN apk add --no-cache --purge --clean-protected -u nginx inotify-tools openssl \
     && mkdir -p /run/nginx \
     && chown $WWWUSER /run/nginx
 
