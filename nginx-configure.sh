@@ -73,9 +73,10 @@ run() {
 ##########################################################################################
 
 # set log level
+cp /etc/nginx/nginx.conf /tmp/nginx.conf
 sed -e 's,\(error_log\).*;,\1 /proc/1/fd/2 '"${DEBUG_LEVEL:-error}"';,g' \
     -e 's,\(access_log\).*;,\1 /proc/1/fd/1 combined;,g' \
-    -i /etc/nginx/nginx.conf
+    /tmp/nginx.conf > /etc/nginx/nginx.conf
 
 reloadNginx() {
     if pgrep nginx 2>&1 > /dev/null; then

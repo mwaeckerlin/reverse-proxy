@@ -1,6 +1,5 @@
 #!/bin/sh -e
 
-sed -i '/^daemon off/d' /etc/nginx/nginx.conf
 ! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
 
 startNginx() {
@@ -36,7 +35,7 @@ for f in /*.conf.sh /run/secrets/*.conf.sh; do
 done
 
 test -e /etc/letsencrypt/dhparam.pem || \
-    openssl dhparam -out /etc/letsencrypt/dhparam.pem 2048
+    openssl dhparam -out /etc/letsencrypt/dhparam.pem 1024
 
 # run webserver
 startNginx

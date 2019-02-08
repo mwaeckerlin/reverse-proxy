@@ -1,6 +1,11 @@
 Docker Image: Virtual Hosts Reverse Proxy
 =========================================
 
+Ports
+-----
+
+This reverse proxy listens on ports `8000` for HTTP and `8443` for HTTPS.
+
 Configuration From Config File
 ------------------------------
 
