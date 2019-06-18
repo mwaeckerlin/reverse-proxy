@@ -20,8 +20,9 @@ ADD nginx-configure.sh /nginx-configure.sh
 
 ENV userdirs "/run/nginx /var/cache/nginx /etc/nginx/sites-enabled /etc/nginx/sites-available"
 RUN apk add --no-cache --purge --clean-protected -u inotify-tools openssl \
-    && mkdir -p ${userdirs} \
-    && chown ${WWWUSER} -R ${userdirs} /etc/nginx/nginx.conf
+ && mkdir -p ${userdirs} \
+ && chown ${WWWUSER} -R ${userdirs} /etc/nginx/nginx.conf \
+ && setcap cap_net_bind_service=+ep $(which nginx)
 
 USER ${WWWUSER}
 

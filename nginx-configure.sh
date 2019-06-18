@@ -167,7 +167,6 @@ server { # redirect www to non-www
   server_name www.${server};
   add_header Strict-Transport-Security max-age=15552000 always;
   return 302 \$scheme://${server}:${HTTPS_PORT}\$request_uri;
-  ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
 }
@@ -175,7 +174,6 @@ server {
   listen ${HTTPS_PORT} ssl http2;
   server_name ${server};
   add_header Strict-Transport-Security max-age=15552000 always;
-  ssl on;
   ssl_certificate $(certfile $server);
   ssl_certificate_key $(keyfile $server);
   error_page 502 /502.html;
