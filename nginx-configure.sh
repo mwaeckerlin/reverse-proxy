@@ -3,7 +3,7 @@
 . /letsencrypt-config.sh
 
 # setup nginx configuration from server list
-CONF=/var/tmp/nginx/servers
+CONF=/tmp/nginx/servers
 test -d ${CONF} || mkdir -p ${CONF}
 rm -rf ${CONF}/* || true
 
