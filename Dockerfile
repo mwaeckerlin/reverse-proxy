@@ -38,6 +38,8 @@ FROM mwaeckerlin/scratch
 ENV CONTAINERNAME "reverse-proxy"
 ENV DEBUG_LEVEL "error"
 ENV BASIC_AUTH_REALM ""
+ENV HTTP_PORT "8080"
+ENV HTTPS_PORT "8443"
 EXPOSE ${HTTP_PORT} ${HTTPS_PORT}
 VOLUME /etc/nginx/sites-available
 VOLUME /etc/nginx/sites-enabled
@@ -45,3 +47,4 @@ VOLUME /etc/nginx/basic-auth
 VOLUME /etc/letsencrypt
 VOLUME /acme
 COPY --from=assemble / /
+CMD /start.sh
