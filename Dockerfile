@@ -63,4 +63,4 @@ VOLUME /acme
 COPY --from=assemble / /
 CMD /start.sh
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
-    CMD /bin/sh -c "/usr/bin/wget -qO/dev/null http://localhost:\${HTTPS_PORT}"
+    CMD /bin/sh -c "/usr/bin/wget -qO/dev/null http://localhost:\${HTTP_PORT}"
