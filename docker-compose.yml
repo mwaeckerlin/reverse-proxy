@@ -24,3 +24,6 @@ services:
 
   lokal:
     image: mwaeckerlin/nginx
+
+  doesnotrun:
+    image: mwaeckerlin/very-base

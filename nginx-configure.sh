@@ -49,8 +49,8 @@ run() {
     check=1
     while test $# -gt 0; do
         case "$1" in
-            (--no-check) check=0;;
-            (*) break;;
+        --no-check) check=0 ;;
+        *) break ;;
         esac
         shift
     done
@@ -75,7 +75,7 @@ run() {
 ##########################################################################################
 
 reloadNginx() {
-    if pgrep nginx 2>&1 > /dev/null; then
+    if pgrep nginx 2>&1 >/dev/null; then
         if nginx -t; then
             nginx -s reload
         else
@@ -97,7 +97,7 @@ EOF
 function writeHTTP() {
     local target="$1"
     local server="$2"
-    cat > "${target}" <<EOF
+    cat >"${target}" <<EOF
 map \$http_accept_language \$lang {
   default en;
   ~*^de de;
@@ -109,6 +109,7 @@ server { # redirect www to non-www
       alias /acme/.well-known;
   }
   location / {
+    resolver 127.0.0.11:53 valid=30s;
     return 302 http://${server}:${HTTP_PORT}\$request_uri;
   }
 }
@@ -142,7 +143,7 @@ function writeHTTPS() {
         writeHTTP $*
         return
     fi
-    cat > "${target}" <<EOF
+    cat >"${target}" <<EOF
 map \$http_accept_language \$lang {
   default en;
   ~*^de de;
@@ -155,6 +156,7 @@ server { # redirect http to https
       alias /acme/.well-known;
   }
   location / {
+    resolver 127.0.0.11:53 valid=30s;
     return 302 https://${server}:${HTTPS_PORT}\$request_uri;
   }
 }
@@ -199,14 +201,14 @@ function writeConfigs() {
         server=${file##*/}
         server=${server%.conf}
         # remove server if no more configured
-        test -e "${CONF}/${server}" || \
-            ( rm -r "$file" && echo "---- configuration removed for server ${server}" )
+        test -e "${CONF}/${server}" ||
+            (rm -r "$file" && echo "---- configuration removed for server ${server}")
     done
     for server in $(ls -1 ${CONF}); do
         local target=/etc/nginx/sites-available/${server}.conf
-        if test -e "${CONF}.last/${server}" \
-                && diff -q "${CONF}/${server}" "${CONF}.last/${server}" \
-                && grep -q ssl_certificate "${target}"; then
+        if test -e "${CONF}.last/${server}" &&
+            diff -q "${CONF}/${server}" "${CONF}.last/${server}" &&
+            grep -q ssl_certificate "${target}"; then
             # configuration has not changed
             echo "---- not changed: $server"
             continue
@@ -276,37 +278,39 @@ EOF
 EOF
     else
         if test -e /etc/nginx/basic-auth/${fromurl}.htpasswd; then
-            cat >> "${CONF}/${fromurl}" <<EOF
+            cat >>"${CONF}/${fromurl}" <<EOF
     auth_basic \"${BASIC_AUTH_REALM:-${fromurl}}\";
     auth_basic_user_file /etc/nginx/basic-auth/${fromurl}.htpasswd;
 EOF
         fi
     fi
-    cat >> "${CONF}/${fromurl}" <<EOF
+    cat >>"${CONF}/${fromurl}" <<EOF
     include proxy.conf;
+    resolver 127.0.0.11:53 valid=30s;
+    set \$tourl ${tourl};
     if (\$request_method ~ ^COPY\$) {
       rewrite $tobase/(.*) $frombase/\$1 break;
     }
     proxy_cookie_domain ${tourl} ${fromurl};
 EOF
     if [ ${tobase}/ != ${frombase}/ ]; then
-        cat >> "${CONF}/${fromurl}" <<EOF
+        cat >>"${CONF}/${fromurl}" <<EOF
     proxy_cookie_path ${tobase}/ ${frombase}/;
 EOF
     fi
-    cat >> "${CONF}/${fromurl}" <<EOF
-    proxy_pass ${toscheme}${tourl}${toport}${tobase}/;
+    cat >>"${CONF}/${fromurl}" <<EOF
+    proxy_pass ${toscheme}\$tourl${toport}${tobase}/;
 EOF
     if echo "${PROXY_REDIRECT_OFF}" | egrep -q '^\b'"${fromurl//./\\.}${frombase}"'\b'; then
-        cat >> "${CONF}/${fromurl}" <<EOF
+        cat >>"${CONF}/${fromurl}" <<EOF
     proxy_redirect off;
 EOF
     else
-        cat >> "${CONF}/${fromurl}" <<EOF
-    proxy_redirect ${toscheme}${tourl}${toport}${tobase}/ \$scheme://${fromurl}${frombase};
+        cat >>"${CONF}/${fromurl}" <<EOF
+    proxy_redirect ${toscheme}\$tourl${toport}${tobase}/ \$scheme://${fromurl}${frombase};
 EOF
     fi
-    cat >> "${CONF}/${fromurl}" <<EOF
+    cat >>"${CONF}/${fromurl}" <<EOF
   }
 EOF
 }
@@ -322,11 +326,11 @@ function redirect() {
     local server=${source%%/*}
     echo "---- redirect: $*"
     if test "${server}" != "${source}"; then
-        cat >> "${CONF}/${server}" <<EOF
+        cat >>"${CONF}/${server}" <<EOF
   rewrite ^/${source#${server}/}(/.*)?$ \$scheme://${target%/}\$1 permanent;
 EOF
     else
-        cat >> "${CONF}/${server}" <<EOF
+        cat >>"${CONF}/${server}" <<EOF
   rewrite ^/$ \$scheme://${target%/}/ permanent;
 EOF
     fi
@@ -339,7 +343,8 @@ EOF
 # commandline parameter evaluation
 while test $# -gt 0; do
     case "$1" in
-        (--help|-h) less <<EOF
+    --help | -h)
+        less <<EOF
 SYNOPSIS
 
   $0 [OPTIONS]
@@ -404,27 +409,34 @@ certificates are requested for the domains my.web-site.com,
 my.website.com, another.site.com, some.more.com.
 
 EOF
-                    exit;;
-        (--redirect|-r)
-            if test $# -lt 3; then
-                error "missing parameter at $*, try $0 --help"; exit 1
-            fi
-            redirect "$2" "$3"
-            shift 2
-            ;;
-        (--forward|-f)
-            if test $# -lt 3; then
-                error "missing parameter at $*, try $0 --help"; exit 1
-            fi
-            forward "$2" "$3"
-            shift 2
-            ;;
-        (*) error "unknow option $1, try $0 --help"; exit 1;;
+        exit
+        ;;
+    --redirect | -r)
+        if test $# -lt 3; then
+            error "missing parameter at $*, try $0 --help"
+            exit 1
+        fi
+        redirect "$2" "$3"
+        shift 2
+        ;;
+    --forward | -f)
+        if test $# -lt 3; then
+            error "missing parameter at $*, try $0 --help"
+            exit 1
+        fi
+        forward "$2" "$3"
+        shift 2
+        ;;
+    *)
+        error "unknow option $1, try $0 --help"
+        exit 1
+        ;;
     esac
     if test $# -eq 0; then
-        error "missing parameter, try $0 --help"; exit 1
+        error "missing parameter, try $0 --help"
+        exit 1
     fi
-    shift;
+    shift
 done
 
 # check for environment variables that are set for explicit redirecting
