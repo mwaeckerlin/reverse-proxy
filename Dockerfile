@@ -63,4 +63,4 @@ VOLUME /acme
 COPY --from=assemble / /
 CMD /start.sh
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
-    CMD /bin/sh -c "netstat -tln | grep -q \":\${HTTP_PORT}\""
+    CMD /bin/sh -c "netstat -tln | grep -q \"0\.0\.0\.0:\${HTTP_PORT}\""
