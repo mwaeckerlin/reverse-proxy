@@ -1,8 +1,6 @@
 #!/bin/sh -ex
 
-if test "${LETSENCRYPT}" != "off"; then
-    . /letsencrypt-config.sh
-fi
+. /letsencrypt-config.sh
 
 # setup nginx configuration from server list
 CONF=/tmp/nginx/servers
