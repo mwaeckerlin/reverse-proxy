@@ -25,6 +25,7 @@ RUN tar cp \
     $(find /usr/bin -type l) \
     $(which openssl) \
     $(which inotifywait) \
+    $(which getent) \
     $(for f in $(which openssl) $(which inotifywait); do \
     ldd $f | sed -n 's,.* => \([^ ]*\) .*,\1,p'; \
     done 2> /dev/null) 2> /dev/null \
