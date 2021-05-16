@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
 ! test -e /etc/nginx/sites-enabled/default || rm /etc/nginx/sites-enabled/default
 
@@ -11,6 +11,7 @@ startNginx() {
         fi
     else
         echo "**** ERROR: nginx configuration failed" 1>&2
+        exit 1
     fi
 }
 
@@ -18,8 +19,12 @@ updateConfig() {
     /nginx-configure.sh $*
     if nginx -t; then
         nginx -s reload
-        if certbot renew -n --agree-tos -a webroot --webroot-path=/acme; then
-            nginx -s reload
+        if test "${LETSENCRYPT}" != "off"; then
+            if certbot renew -n --agree-tos -a webroot --webroot-path=/acme; then
+                if nginx -t; then
+                    nginx -s reload
+                fi
+            fi
         fi
         echo "**** configuration updated $(date)"
     else
@@ -34,21 +39,19 @@ for f in /*.conf.sh /run/secrets/*.conf.sh; do
     fi
 done
 
-test -e /etc/letsencrypt/dhparam.pem || \
-    openssl dhparam -out /etc/letsencrypt/dhparam.pem 4096
+if test "${LETSENCRYPT}" != "off"; then
+    test -e /etc/letsencrypt/dhparam.pem ||
+        openssl dhparam -out /etc/letsencrypt/dhparam.pem ${DHPARAM:-4096}
+fi
 
 # run webserver
 startNginx
-if test -e /config/reverse-proxy.conf; then
-    updateConfig $(cat /config/reverse-proxy.conf)
-    /letsencrypt.start.sh
-    while true; do
-        inotifywait -q -e close_write /config/reverse-proxy.conf
-        echo "**** configuration changed $(date)"
+while true; do
+    if test -e /config/reverse-proxy.conf; then
         updateConfig $(cat /config/reverse-proxy.conf)
-    done
-else
-    updateConfig
-    /letsencrypt.start.sh
-    while true; do sleep 1000d; done
-fi
+    else
+        updateConfig
+    fi
+    inotifywait -q -e close_write /config /etc/letsencrypt
+    echo "**** configuration changed $(date)"
+done

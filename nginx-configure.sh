@@ -1,6 +1,8 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
-. /letsencrypt-config.sh
+if test "${LETSENCRYPT}" != "off"; then
+    . /letsencrypt-config.sh
+fi
 
 # setup nginx configuration from server list
 CONF=/tmp/nginx/servers
@@ -50,7 +52,7 @@ run() {
             (--no-check) check=0;;
             (*) break;;
         esac
-        shift;
+        shift
     done
     echo -en "\e[1m-> running:\e[0m $* ..."
     result=$($* 2>&1)
@@ -71,12 +73,6 @@ run() {
 }
 
 ##########################################################################################
-
-# set log level
-cp /etc/nginx/nginx.conf /tmp/nginx.conf
-sed -e 's,\(error_log\).*;,\1 /proc/1/fd/2 '"${DEBUG_LEVEL:-error}"';,g' \
-    -e 's,\(access_log\).*;,\1 /proc/1/fd/1 combined;,g' \
-    /tmp/nginx.conf > /etc/nginx/nginx.conf
 
 reloadNginx() {
     if pgrep nginx 2>&1 > /dev/null; then
@@ -225,7 +221,7 @@ function writeConfigs() {
         fi
         cat "${target}"
         echo "===================="
-	test -d "${CONF}.last" || mkdir -p "${CONF}.last"
+        test -d "${CONF}.last" || mkdir -p "${CONF}.last"
         mv "${CONF}/${server}" "${CONF}.last/${server}"
     done
 }
@@ -244,7 +240,7 @@ function forward() {
     local fromurl=$source
     local toscheme="http://"
     echo "---- forward: $*"
-    if test "${2}" != "${2#http://}" -o  "${2}" != "${2#https://}"; then
+    if test "${2}" != "${2#http://}" -o "${2}" != "${2#https://}"; then
         toscheme=${2%%://*}://
     fi
     if test "${source}" != "${source%%/*}"; then
@@ -270,11 +266,11 @@ function forward() {
     if [ -z "$toip" ]; then
         toip=$(getent hosts ${tourl} | sed -n '1s, .*,,p')
     fi
-    cat >> "${CONF}/${fromurl}" <<EOF
+    cat >>"${CONF}/${fromurl}" <<EOF
   location ${frombase}/ {
 EOF
     if test -e /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd; then
-        cat >> "${CONF}/${fromurl}" <<EOF
+        cat >>"${CONF}/${fromurl}" <<EOF
     auth_basic \"${BASIC_AUTH_REALM:-${fromurl}/${frombase}}\";
     auth_basic_user_file /etc/nginx/basic-auth/${fromurl}/${frombase}.htpasswd;
 EOF
@@ -431,7 +427,6 @@ EOF
     shift;
 done
 
-
 # check for environment variables that are set for explicit redirecting
 for redirect in $(env | sed -n 's/redirect-\(.*\)=.*/\1/p'); do
     frompath=$(echo "${redirect,,}" | sed 's/+/ /g;s/%\([0-9a-f][0-9a-f]\)/\\x\1/g;s/_/-/g' | xargs -0 printf "%b")
@@ -463,4 +458,4 @@ for name in $(env | sed -n 's/_PORT_.*_TCP_ADDR=.*//p' | sort | uniq); do
     forward ${source} ${toip}:${toport}${tobase%/}
 done
 
-writeConfigs;
+writeConfigs

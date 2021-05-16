@@ -114,6 +114,24 @@ The following additional environment variables can be configured:
 
 ## Examples
 
+### Example in Docker Compose
+
+Add to line `127.0.0.1 localhost` your `/etc/hosts` new host names, namely `demo`, `test` and `lokal`:
+
+    127.0.0.1	localhost demo test lokal
+
+Then build and run the example from `docker-compose.yaml`:
+
+- `docker-compose build`
+- `docker-compose up`
+- browse to:
+  - [http://localhost:8080]
+  - [http://demo:8080]
+  - [http://test:8080]
+  - [http://lokal:8080]
+  - [http://extern:8080]
+- hit `ctrl+c` when done
+
 ### Example
 
 1. Start a wordpress instance (including a volume container):
