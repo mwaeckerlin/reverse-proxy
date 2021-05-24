@@ -62,5 +62,5 @@ VOLUME /etc/letsencrypt
 VOLUME /acme
 COPY --from=assemble / /
 CMD /start.sh
-HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
     CMD /bin/sh -c "netstat -tln | grep -q \"0\.0\.0\.0:\${HTTP_PORT}\""
