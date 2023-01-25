@@ -1,0 +1,34 @@
+version: "3.4"
+services:
+  reverse-proxy:
+    image: mwaeckerlin/reverse-proxy
+    ports:
+      - 8080:8080
+    build:
+      context: .
+      args:
+        SSL: "off"
+        FORWARD: |-
+          localhost localserver:8080
+          demo demo:8080
+          test test:8080
+          doesnotrun doesnotrun:8080
+        REDIRECT: |-
+          extern pacta.swiss
+        ## make sure to change the following to at least 4096
+        ## the default of 512 is just a dummy
+        ## must be rebuilt before you release your configured image
+        ##DHPARAM: 4096
+
+  localserver:
+    image: mwaeckerlin/nginx
+
+  demo:
+    image: mwaeckerlin/nginx
+
+  test:
+    image: mwaeckerlin/nginx
+
+  # just a dummy, not a web server - produces maintenance page
+  doesnotrun:
+    image: mwaeckerlin/very-base
