@@ -10,8 +10,9 @@ sleep 5s
 ./test.sh
 docker-compose rm -vfs
 
-# tag repository -> don't forget to run: git push --tags
+# tag repository
 git tag v$version
+git push --tags
 
 # build and push all variants
 for tag in latest $version; do
