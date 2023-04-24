@@ -24,6 +24,7 @@ ARG SSL
 COPY nginx-configure.sh .
 RUN ./nginx-configure.sh
 RUN mv /etc/nginx/server.d /root/etc/nginx/
+RUN mkdir -p /root/etc/letsencrypt/live
 
 RUN test -e /root/usr/bin/inotifywait
 RUN test -e /root/usr/bin/run-nginx
@@ -35,13 +36,11 @@ COPY --chown=root conf/ /etc/nginx/
 FROM mwaeckerlin/very-base as test
 RUN $PKG_INSTALL nginx
 USER $RUN_USER
-VOLUME /etc/letsencrypt/live
 COPY --from=assemble / /
 RUN /usr/sbin/nginx -t
 
 FROM mwaeckerlin/scratch
 ENV CONTAINERNAME "reverse-proxy"
 EXPOSE 8080 8443
-VOLUME /etc/letsencrypt/live
 COPY --from=assemble / /
 CMD [ "/usr/bin/run-nginx" ]

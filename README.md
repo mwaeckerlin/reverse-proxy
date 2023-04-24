@@ -21,15 +21,13 @@ There are two ways the reverse proxy works:
 
 Configuration has to be done at build time, so just fork or clone the project, then write your own `docker-compose.yaml` with your configuration.
 
-### SSL
-
-Build time argument `SSL` can be set to `off` to disable `https`.
-
 ### Forwarding Requests
 
-Build time argument `FORWARD` configures urls to be forwarded. Each definituion consists of a external from URL and an internal to URL and must be an a separate line, separated by newline.
+Build time argument `FORWARD` configures urls to be forwarded. Each definituion consists of a external from URL and an internal to URL and must be on a separate line, separated by newline. Requests to the fuirst URL are redirected to the second URL, while the second URL is normally not public, but only available cloud internal.
 
 ### Redirecting URLs
+
+Build time argument `REDIRECT` configures urls to be redirected. Each definituion consists of two URLs, the from and the to URL, and must be on a separate line, separated by newline. Every request to the first URL is redirected to the secons URL. Both URLs must be publicly available.
 
 ### Example
 
@@ -40,7 +38,7 @@ This is a snipped from `docker-compose.yaml`:
       ports:
          - 8080:8080
       build:
-         context:
+         context: .
          args:
             SSL: "off"
             FORWARD: |-
@@ -80,3 +78,140 @@ Then build and run the example from `docker-compose.yaml`:
   - [http://doesnotrun:8080] - shows maintenance page
   - [http://extern:8080]
 - hit `ctrl+c` when done
+
+### SSL
+
+Build time argument `SSL` can be set to `off` to disable `https`.
+
+#### Full Sample for an SSL Server with Let's Encrypt
+
+In this sample, [mwaeckerlin/reverse-proxy](https://github.com/mwaeckerlin/reverse-proxy) and [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) containers share the same volumes to `/acme` for the Let's Encrypt negotiation, and the certificates in `/etc/letsencrypt`.
+
+Restart [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) only once in an hour, because too many failed attempts result in blocking the account.
+
+##### Fix File Access Permissions in Docker Compose Volumes
+
+Because Let's Encrypt must be able to write into `/etc/letsencrypt` and `/acme`, but volumes created by `docker compose` cannot be assigned permissions, namely an owner, I added the service `fix-permission`, which just starts up once, and assignes the pasthes to the `${RUN_USER}` by running `${ALLOW_USER}` (which is defined as `"chown -R ${RUN_USER}:${RUN_GROUP}"` in [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch)).
+
+##### The Configuration File
+
+Secrets, such as API keys or database passwords are not defined here, but injected through environment variables.
+
+Check this `docker-compose.yml` file:
+
+```yaml
+version: '3.5'
+services:
+  fix-permission:
+    image: mwaeckerlin/very-base
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '$${ALLOW_USER} /etc/letsencrypt /acme'
+    volumes:
+      - type: volume
+        source: certificates
+        target: /etc/letsencrypt
+      - type: volume
+        source: acme
+        target: /acme
+
+  reverse-proxy:
+    image: 1845345354.dkr.ecr.eu-central-2.amazonaws.com/reverse-proxy
+    build:
+      context: reverse-proxy
+      args:
+        DHPARAM: 4096
+        FORWARD: |-
+          example-service.example.com example-service:4000
+    depends_on:
+      - fix-permission
+    ports:
+      - '80:8080'
+      - '443:8443'
+    networks:
+      - proxy-letsencrypt
+      - proxy-example-service
+    volumes:
+      - type: volume
+        source: certificates
+        target: /etc/letsencrypt
+      - type: volume
+        source: acme
+        target: /acme
+
+  letsencrypt:
+    image: mwaeckerlin/letsencrypt
+    depends_on:
+      - fix-permission
+      - reverse-proxy
+    environment:
+      EMAIL: 'marc@example.com'
+      DOMAINS: 'example-service.example.com'
+      PREFIXES: ''
+    networks:
+      - proxy-letsencrypt
+    volumes:
+      - type: volume
+        source: certificates
+        target: /etc/letsencrypt
+      - type: volume
+        source: acme
+        target: /acme
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 1h
+
+  example-service:
+    image: 1845345354.dkr.ecr.eu-central-2.amazonaws.com/example-service
+    depends_on:
+      - example-db
+    environment:
+      APIKEY:
+      APIHOST:
+      APISECRET:
+      DB_TYPE: postgresql
+      DB_NAME: database
+      DB_HOST: example-db
+      DB_USER: user
+      DB_PASSWORD:
+      DB_PORT: 5432
+    networks:
+      - proxy-example-service
+      - example-db-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  example-db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD:
+      POSTGRES_USER: user
+      POSTGRES_DB: database
+    volumes:
+      - type: volume
+        source: db-volume
+        target: /var/lib/postgresql/data
+    networks:
+      - example-db-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  db-volume: {}
+  certificates: {}
+  acme: {}
+networks:
+  example-db-network:
+    driver_opts:
+      encrypted: 1
+  proxy-letsencrypt:
+    driver_opts:
+      encrypted: 1
+  proxy-example-service:
+    driver_opts:
+      encrypted: 1
+```
