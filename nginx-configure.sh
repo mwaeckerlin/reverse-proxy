@@ -72,7 +72,7 @@ server {
   server_name ${server} www.${server};
   set \$port 8443;
   add_header Strict-Transport-Security max-age=15552000 always;
-  ssl_certificate /etc/letsencrypt/live/\$server_name/cert.pem;
+  ssl_certificate /etc/letsencrypt/live/\$server_name/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/\$server_name/privkey.pem;
   error_page 502 /502.html;
   error_page 504 /504.html;
