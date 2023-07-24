@@ -97,7 +97,7 @@ Because Let's Encrypt must be able to write into `/etc/letsencrypt` and `/acme`,
 
 Secrets, such as API keys or database passwords are not defined here, but injected through environment variables.
 
-Check this `docker-compose.yml` file:
+Check this `docker-compose.yaml` file:
 
 ```yaml
 version: '3.5'
