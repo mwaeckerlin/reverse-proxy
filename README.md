@@ -185,7 +185,7 @@ services:
         condition: on-failure
 
   example-db:
-    image: postgres
+    image: postgres:15
     environment:
       POSTGRES_PASSWORD:
       POSTGRES_USER: user
