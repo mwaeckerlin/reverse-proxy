@@ -33,6 +33,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
+#include <cctype>
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
@@ -130,6 +131,30 @@ struct Rule {
   string target;
 };
 
+// Rule tokens are rendered verbatim into the generated nginx configuration:
+// restrict them to a safe character set so a malformed or hostile token can
+// neither break the configuration nor inject directives — one bad rule must
+// never take all virtual hosts down.
+static bool safeToken(const string &s) {
+  if (s.empty() || s.front() == '/')
+    return false;
+  for (unsigned char c : s)
+    if (!isalnum(c) && c != '.' && c != '_' && c != ':' && c != '/' && c != '-')
+      return false;
+  return true;
+}
+
+// Append a rule after validation; invalid rules are skipped with a warning.
+static void addRule(bool forward, const string &source, const string &target,
+                    vector<Rule> &out) {
+  if (!safeToken(source) || !safeToken(target)) {
+    cerr << "**** WARNING: ignoring invalid rule: " << source << ' ' << target
+         << endl;
+    return;
+  }
+  out.push_back({forward, source, target});
+}
+
 // Parse "<source> <target>" from a single line; ignores blank / comment lines.
 static bool parsePair(const string &line, string &source, string &target) {
   string trimmed = line;
@@ -150,7 +175,7 @@ static void appendRules(const string &block, bool forward, vector<Rule> &out) {
   while (getline(in, line)) {
     string source, target;
     if (parsePair(line, source, target))
-      out.push_back({forward, source, target});
+      addRule(forward, source, target, out);
   }
 }
 
@@ -172,9 +197,9 @@ static vector<Rule> collectRules() {
       if (t.size() < 3)
         continue;
       if (t[0] == "forward")
-        fileRules.push_back({true, t[1], t[2]});
+        addRule(true, t[1], t[2], fileRules);
       else if (t[0] == "redirect")
-        fileRules.push_back({false, t[1], t[2]});
+        addRule(false, t[1], t[2], fileRules);
     }
   }
 
@@ -351,7 +376,8 @@ static string writeHTTPS(const string &server, const string &content) {
        "  http2 on;\n"
        "  server_name " << server << ";\n"
        "  set $port 8443;\n"
-       "  add_header Strict-Transport-Security max-age=15552000 always;\n"
+       // One year — keep in sync with the map in conf/conf.d/hsts.conf.
+       "  add_header Strict-Transport-Security max-age=31536000 always;\n"
        "  ssl_certificate " << live << "/fullchain.pem;\n"
        "  ssl_certificate_key " << live << "/privkey.pem;\n"
        "  error_page 502 /502.html;\n"

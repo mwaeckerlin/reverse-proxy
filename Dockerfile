@@ -8,7 +8,7 @@ RUN $PKG_INSTALL inotify-tools openssl g++
 # openssl ships in the image so run-nginx can generate the DH parameters at
 # start (not baked at build): high bits by default, generated once and kept on
 # the persistent DHPARAM_FILE.
-ENV EXE "/usr/bin/run-nginx /usr/bin/inotifywait /usr/bin/openssl"
+ENV EXE="/usr/bin/run-nginx /usr/bin/inotifywait /usr/bin/openssl"
 COPY run-nginx.cpp /build
 RUN g++ -std=c++17 -o /usr/bin/run-nginx run-nginx.cpp
 
@@ -32,7 +32,7 @@ COPY --from=build /root /
 COPY --chown=root conf/ /etc/nginx.template/
 
 FROM mwaeckerlin/scratch
-ENV CONTAINERNAME "reverse-proxy"
+ENV CONTAINERNAME="reverse-proxy"
 EXPOSE 8080 8443
 COPY --from=assemble / /
 CMD [ "/usr/bin/run-nginx" ]

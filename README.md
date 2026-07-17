@@ -74,6 +74,10 @@ redirect  old.example.com   example.com
   usually not public, only reachable inside the cloud.
 - **target** of a redirect: the public URL to redirect to.
 
+Rule tokens are validated: only letters, digits and `._:/-` are accepted, and
+the host part must not be empty. An invalid rule is ignored with a warning in
+the container log; all other rules stay in effect.
+
 An unconfigured host answers with the *not found* page; a configured forward
 whose backend is unreachable answers with the *maintenance* page.
 
@@ -84,10 +88,21 @@ To protect a forwarded host with HTTP basic-auth, mount a htpasswd file at
 for a specific base path). When present, `run-nginx` wires it up automatically.
 The realm can be overridden with the environment variable `BASIC_AUTH_REALM`.
 
+**Note:** basic-auth is only meaningful over HTTPS. Until the certificate
+exists (or with `SSL=off`) the host is served over plain HTTP and credentials
+would travel unencrypted — protect a host once it is served over HTTPS.
+
 ### Other environment variables
 
 - `PROXY_REDIRECT_OFF`: whitespace separated list of `host[/base]` for which
   nginx `proxy_redirect` is turned off.
+
+### Security headers
+
+The proxy is authoritative for two response headers on forwarded requests:
+`Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` are set
+exactly once, replacing any backend copy. HTTPS responses carry
+`Strict-Transport-Security` with a lifetime of one year.
 
 ## Ports
 

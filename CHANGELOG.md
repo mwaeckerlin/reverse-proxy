@@ -1,5 +1,19 @@
 # Changelog
 
+- 2026-07-17 **2.0.1**
+    - Hardening after a static security review:
+        - Malformed or hostile forward/redirect rules are rejected with a
+          warning instead of being written into the web server configuration,
+          so one bad rule can no longer take all virtual hosts down.
+        - Proxied responses now carry exactly one `Referrer-Policy` and one
+          `X-Content-Type-Options: nosniff` header, replacing backend copies.
+        - The HSTS lifetime is raised to one year.
+    - The demo compose file configures the routing at runtime again (build
+      arguments stopped working with 2.0.0) and no longer suggests weak
+      Diffie-Hellman parameters.
+    - The image build context is reduced to the files the image needs; the
+      image build and the test suites run without warnings.
+
 - 2026-07-16 **2.0.0**
     - Configuration is applied again when the container starts, not when the
       image is built — you no longer rebuild the image to change the routing.

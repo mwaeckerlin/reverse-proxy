@@ -1,0 +1,6 @@
+# The image build needs only run-nginx.cpp and conf/ — keep everything else
+# (tests, submodule, docs, scripts) out of the build context.
+*
+!run-nginx.cpp
+!conf
+!conf/**

@@ -43,15 +43,21 @@ services:
       context: ../..
     environment:
       <<: *dhparam
+      # The invalid rules (bad{host, bad;redir) must be ignored with a warning;
+      # after.invalid proves that the rules after them are still applied.
       FORWARD: |-
         localhost localserver:8080
         demo demo:8080
         test test:8080
         doesnotrun doesnotrun:8080
         pathhost/app localserver:8080
+        plain plain:8080
+        bad{host localserver:8080
+        after.invalid localserver:8080
       REDIRECT: |-
         extern example.com
         redirbase/old example.com
+        bad;redir example.com
 
   # --- configuration via a mounted file only -----------------------------
   revproxy-file:
@@ -109,6 +115,13 @@ services:
 
   php-fpm:
     image: php:8-fpm-alpine
+
+  # Barebones backend that sends no security headers of its own: proves the
+  # proxy adds them (the mwaeckerlin/nginx backends already send their own).
+  plain:
+    image: python:3.12-slim
+    command: ["python", "-m", "http.server", "8080"]
+    working_dir: /srv
 
   # Just a dummy, not a web server: nothing listens, so the proxy answers with
   # its 502 maintenance page.

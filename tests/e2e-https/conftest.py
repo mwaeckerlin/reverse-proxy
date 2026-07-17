@@ -6,9 +6,6 @@ import time
 
 import pytest
 import requests
-import urllib3
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 DOMAIN    = os.environ.get("DOMAIN", "secure.example.com")
 HTTP_URL  = os.environ.get("HTTP_URL", "http://secure.example.com:8080")

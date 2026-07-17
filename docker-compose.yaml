@@ -1,24 +1,23 @@
-version: "3.4"
+# Local demo stack. Rules are applied at container start (environment/file, see
+# README) — no build arguments, no image rebuild to change the routing.
 services:
   reverse-proxy:
     image: mwaeckerlin/reverse-proxy
-    ports:
-      - 8080:8080
     build:
       context: .
-      args:
-        SSL: "off"
-        FORWARD: |-
-          localhost localserver:8080
-          demo demo:8080
-          test test:8080
-          doesnotrun doesnotrun:8080
-        REDIRECT: |-
-          extern pacta.swiss
-        ## make sure to change the following to at least 4096
-        ## the default of 512 is just a dummy
-        ## must be rebuilt before you release your configured image
-        ##DHPARAM: 4096
+    ports:
+      - 8080:8080
+    environment:
+      # Small DH parameters only to speed up this HTTP-only demo stack (no TLS
+      # is terminated here); the production default is 4096.
+      DHPARAM: "512"
+      FORWARD: |-
+        localhost localserver:8080
+        demo demo:8080
+        test test:8080
+        doesnotrun doesnotrun:8080
+      REDIRECT: |-
+        extern example.com
 
   localserver:
     image: mwaeckerlin/nginx
@@ -32,3 +31,4 @@ services:
   # just a dummy, not a web server - produces maintenance page
   doesnotrun:
     image: mwaeckerlin/very-base
+    command: ["sleep", "infinity"]

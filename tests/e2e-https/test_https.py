@@ -44,9 +44,10 @@ def test_https_presents_the_issued_certificate():
 
 
 def test_https_sets_hsts_header():
+    # One year, the recommended minimum (and the preload requirement).
     assert wait_until(_https_ok) is not None
     r = https_get("/")
-    assert "Strict-Transport-Security" in r.headers
+    assert r.headers.get("Strict-Transport-Security") == "max-age=31536000"
 
 
 def test_www_over_http_redirects_to_https():
