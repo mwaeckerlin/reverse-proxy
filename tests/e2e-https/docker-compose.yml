@@ -1,0 +1,104 @@
+# HTTPS e2e stack: the reverse-proxy terminates TLS with a real certificate that
+# mwaeckerlin/letsencrypt obtains from the local Pebble ACME test server. The
+# proxy watches /etc/letsencrypt/live, and once the certificate appears it
+# reloads and switches the domain from HTTP to HTTPS.
+
+# Explicit project name so this stack never collides with other e2e stacks that
+# also live in a directory called "e2e" (compose's default project name).
+name: reverse-proxy-https-e2e
+
+services:
+
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:latest
+    command: ["-config", "/test/config/pebble-config.json"]
+    environment:
+      PEBBLE_VA_ALWAYS_VALID: "1"
+      PEBBLE_VA_NOSLEEP: "1"
+
+  # Named volumes start out owned by root; letsencrypt and the proxy both run as
+  # "somebody", so make the shared paths writable/readable for that user first.
+  fix-permission:
+    image: mwaeckerlin/very-base
+    command: ["/bin/sh", "-c", "chown -R somebody:somebody /etc/letsencrypt /acme"]
+    volumes:
+      - certificates:/etc/letsencrypt
+      - acme:/acme
+
+  letsencrypt:
+    image: mwaeckerlin/letsencrypt
+    build:
+      context: ../../letsencrypt
+    restart: on-failure
+    depends_on:
+      pebble:
+        condition: service_started
+      fix-permission:
+        condition: service_completed_successfully
+    environment:
+      DOMAINS: "secure.example.com"
+      PREFIXES: ""
+      EMAIL: "test@example.com"
+      MODE: "webroot"
+      OPTIONS: "--server https://pebble:14000/dir"
+      LEGO_CA_CERTIFICATES: "/pebble.minica.pem"
+    volumes:
+      - ./pebble.minica.pem:/pebble.minica.pem:ro
+      - certificates:/etc/letsencrypt
+      - acme:/acme
+
+  reverse-proxy:
+    image: mwaeckerlin/reverse-proxy
+    build:
+      context: ../..
+    depends_on:
+      backend:
+        condition: service_started
+      fix-permission:
+        condition: service_completed_successfully
+    environment:
+      FORWARD: |-
+        secure.example.com backend:8080
+      # Use the committed, valid test DH parameters instead of generating them
+      # at start: fast, and avoids the "dh key too small" of a tiny generated key.
+      DHPARAM_FILE: /dhparam.pem
+    networks:
+      default:
+        aliases:
+          - secure.example.com
+    volumes:
+      - ./dhparam.pem:/dhparam.pem:ro
+      - certificates:/etc/letsencrypt
+      - acme:/acme
+
+  backend:
+    image: mwaeckerlin/nginx
+    environment:
+      ROOT: /app
+      PHP_FPM_HOST: php-fpm
+      PHP_FPM_PORT: "9000"
+    volumes:
+      - ./app:/app:ro
+    depends_on:
+      - php-fpm
+
+  php-fpm:
+    image: php:8-fpm-alpine
+
+  test-runner:
+    build:
+      context: .
+    profiles:
+      - runner
+    depends_on:
+      - reverse-proxy
+      - letsencrypt
+    environment:
+      DOMAIN: secure.example.com
+      HTTP_URL: http://secure.example.com:8080
+      HTTPS_URL: https://secure.example.com:8443
+    command: ["pytest", "-v", "--tb=short"]
+
+volumes:
+  certificates:
+  acme:

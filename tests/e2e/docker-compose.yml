@@ -1,0 +1,142 @@
+# E2E stack for the reverse-proxy. One proxy instance per configuration source
+# (environment, file, mixed, basic-auth, live reload), all forwarding to the
+# same shared backends, plus a pytest test-runner. The proxy routes by Host
+# header (server_name), so the forward/redirect sources below are the Host
+# values the tests send.
+
+# Explicit project name so this stack never collides with other e2e stacks that
+# also live in a directory called "e2e" (compose's default project name).
+name: reverse-proxy-e2e
+
+# Backend web servers: identical mwaeckerlin/nginx serving a per-host marker
+# page. PHP_FPM_HOST points at the shared php-fpm so the default config loads
+# (php-fpm itself is never exercised -- the marker index.html is served for /).
+x-backend: &backend
+  image: mwaeckerlin/nginx
+  environment:
+    ROOT: /app
+    PHP_FPM_HOST: php-fpm
+    PHP_FPM_PORT: "9000"
+  depends_on:
+    - php-fpm
+
+# Every proxy is the same image; only its configuration source differs.
+x-proxy: &proxy
+  image: mwaeckerlin/reverse-proxy
+  depends_on:
+    - localserver
+    - demo
+    - test
+    - doesnotrun
+
+# DH parameters are generated at start; a tiny key keeps these HTTP-only tests
+# fast (they never terminate TLS, so the size is irrelevant here).
+x-dhparam: &dhparam
+  DHPARAM: "512"
+
+services:
+
+  # --- configuration via environment variables ---------------------------
+  reverse-proxy:
+    <<: *proxy
+    build:
+      context: ../..
+    environment:
+      <<: *dhparam
+      FORWARD: |-
+        localhost localserver:8080
+        demo demo:8080
+        test test:8080
+        doesnotrun doesnotrun:8080
+        pathhost/app localserver:8080
+      REDIRECT: |-
+        extern example.com
+        redirbase/old example.com
+
+  # --- configuration via a mounted file only -----------------------------
+  revproxy-file:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+    volumes:
+      - ./config:/config:ro
+
+  # --- configuration via environment AND file (file wins on conflict) ----
+  revproxy-mixed:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      FORWARD: |-
+        mixedenv localserver:8080
+        conflict localserver:8080
+    volumes:
+      - ./config-mixed:/config:ro
+
+  # --- forward protected by basic-auth -----------------------------------
+  revproxy-auth:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      FORWARD: |-
+        secret localserver:8080
+    volumes:
+      - ./basic-auth:/etc/nginx/basic-auth:ro
+
+  # --- live reload: configuration file on a shared volume, written by the
+  #     test-runner at runtime to prove the file watch reloads nginx --------
+  revproxy-reload:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+    volumes:
+      - reloadcfg:/config
+
+  # --- backends ----------------------------------------------------------
+  localserver:
+    <<: *backend
+    volumes:
+      - ./apps/localserver:/app:ro
+
+  demo:
+    <<: *backend
+    volumes:
+      - ./apps/demo:/app:ro
+
+  test:
+    <<: *backend
+    volumes:
+      - ./apps/test:/app:ro
+
+  php-fpm:
+    image: php:8-fpm-alpine
+
+  # Just a dummy, not a web server: nothing listens, so the proxy answers with
+  # its 502 maintenance page.
+  doesnotrun:
+    image: mwaeckerlin/very-base
+    command: ["sleep", "infinity"]
+
+  # --- test-runner (started explicitly via `compose run`, not by `up`) ----
+  test-runner:
+    build:
+      context: .
+    profiles:
+      - runner
+    depends_on:
+      - reverse-proxy
+      - revproxy-file
+      - revproxy-mixed
+      - revproxy-auth
+      - revproxy-reload
+    environment:
+      REVPROXY_URL: http://reverse-proxy:8080
+      FILE_URL:     http://revproxy-file:8080
+      MIXED_URL:    http://revproxy-mixed:8080
+      AUTH_URL:     http://revproxy-auth:8080
+      RELOAD_URL:   http://revproxy-reload:8080
+    volumes:
+      - reloadcfg:/reload-config
+    command: ["pytest", "-v", "--tb=short"]
+
+volumes:
+  reloadcfg:

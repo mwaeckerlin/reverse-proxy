@@ -1,106 +1,169 @@
 # Docker Image: Virtual Hosts Reverse Proxy
 
-This is a reverse proxy that listens for HTTP and HTTPS on a single incoming port, then redirects according to the URL, namely the domain name and/or path to any internal, not globally visible server. This is for use in a cloud, such as docker swarm or kubernetes.
+This is a reverse proxy that listens for HTTP and HTTPS on a single incoming
+port, then redirects according to the URL, namely the domain name and/or path,
+to any internal, not globally visible server. This is for use in a cloud, such
+as docker swarm or kubernetes.
 
-For using SSL, the service expects SSL-Certificates in `/etc/letsencrypt/live`, so you should run [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) in a seperate container and redirext all requests to `/.well-known` to there and mount a common `/etc/letsencrypt/live`. If a file in `/etc/letsencrypt/live` changes, then the reverse proxy is reloaded immediately and uses the new certificates.
+For using SSL, the service expects SSL-Certificates in `/etc/letsencrypt/live`,
+so you should run [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt)
+in a separate container, redirect all requests to `/.well-known` to there and
+mount a common `/etc/letsencrypt/live`. If a file in `/etc/letsencrypt/live`
+changes, the reverse proxy is reloaded immediately and uses the new
+certificates.
 
-The image is highly optimized, there are only three executables in the image: `nginx` the webserver, `inotifywait` to check for new certificates and a small C++ program `run-nginx` to coordinate those two. There is no shell in the container. So the image is around 10MB including your configurations.
-
-**NOTE:** Configuration has changed. Users of the previous version need to migrate. Configuration is now generated at build time and included in the image. Instead of configuration by file , variables or container link analysis, configuration is now done by two build arguments.
-
-## Ports
-
-This reverse proxy listens on ports `8080` for HTTP and `8443` for HTTPS.
+The image is highly optimized: there are only three executables in the image —
+`nginx` the webserver, `inotifywait` to watch for changes, and a small C++
+program `run-nginx` that renders the configuration from the environment and the
+optional configuration file, starts nginx, and reloads it whenever the
+configuration or the certificates change. There is no shell in the container, so
+the image is around 10 MB including your configuration.
 
 ## Configuration
 
-There are two ways the reverse proxy works:
+The reverse proxy does two things:
 
-- forwarding requests to another service
-- redirect the url to another location
+- **forward** a request to another (cloud-internal) service, or
+- **redirect** a URL to another (public) location.
 
-Configuration has to be done at build time, so just fork or clone the project, then write your own `docker-compose.yaml` with your configuration.
+Configuration is applied **at instantiation** (container start) — nginx itself
+cannot be configured from environment variables, `run-nginx` renders the nginx
+configuration for it. You do **not** need to rebuild the image to change the
+routing.
 
-### Forwarding Requests
+There are two configuration sources, and they can be combined:
 
-Build time argument `FORWARD` configures urls to be forwarded. Each definituion consists of a external from URL and an internal to URL and must be on a separate line, separated by newline. Requests to the fuirst URL are redirected to the second URL, while the second URL is normally not public, but only available cloud internal.
+1. The environment variables `FORWARD` and `REDIRECT`.
+2. A mounted configuration file `/config/reverse-proxy.conf`.
 
-### Redirecting URLs
+Both sources are merged. If the same source host is defined in both, the **file
+wins**. The configuration file is watched: editing it reloads nginx
+automatically, just like a certificate change.
 
-Build time argument `REDIRECT` configures urls to be redirected. Each definituion consists of two URLs, the from and the to URL, and must be on a separate line, separated by newline. Every request to the first URL is redirected to the secons URL. Both URLs must be publicly available.
+### Environment variables
 
-### Example
-
-This is a snipped from `docker-compose.yaml`:
-
-    reverse-proxy:
-      image: mwaeckerlin/reverse-proxy
-      ports:
-         - 8080:8080
-      build:
-         context: .
-         args:
-            SSL: "off"
-            FORWARD: |-
-               localhost localserver:8080
-               demo demo:8080
-               test test:8080
-               lokal lokal:8080
-               doesnotrun doesnotrun:8080
-            REDIRECT: |-
-               extern pacta.swiss
-
-SSL is disabled for simplicity.
-
-Requests on [http://localhost:8080] (port from `ports:`) are forwarded to port `8080` of service `localserver`. Requests to [http://demo:8080] are forwarded to port `8080` of service `demo`. And so on.
-
-Requests to [http://extern:8080] are redirected to [http://pacta.swiss].
-
-Service `doesnotrun` is not configured, so a call to [http://doesnotrun:8080] shows the maintenance page.
-
-Service `lokal` is not configured, so a call to [http://lokal:8080] shows the not found page.
-
-#### Build and Run the Sample
-
-To be able to locally browse to [http://demo:8080], add to line `127.0.0.1 localhost` your `/etc/hosts` new host names, namely `demo`, `test`, `lokal`, `extern` and `doesnotrun`:
-
-    127.0.0.1	localhost demo test lokal extern doesnotrun
-
-Then build and run the example from `docker-compose.yaml`:
-
-- `docker-compose build`
-- `docker-compose up`
-- browse to:
-  - [http://localhost:8080]
-  - [http://demo:8080]
-  - [http://test:8080]
-  - [http://lokal:8080] - not found error
-  - [http://doesnotrun:8080] - shows maintenance page
-  - [http://extern:8080]
-- hit `ctrl+c` when done
-
-### SSL
-
-Build time argument `SSL` can be set to `off` to disable `https`.
-
-#### Full Sample for an SSL Server with Let's Encrypt
-
-In this sample, [mwaeckerlin/reverse-proxy](https://github.com/mwaeckerlin/reverse-proxy) and [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) containers share the same volumes to `/acme` for the Let's Encrypt negotiation, and the certificates in `/etc/letsencrypt`.
-
-Restart [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) only once in an hour, because too many failed attempts result in blocking the account.
-
-##### Fix File Access Permissions in Docker Compose Volumes
-
-Because Let's Encrypt must be able to write into `/etc/letsencrypt` and `/acme`, but volumes created by `docker compose` cannot be assigned permissions, namely an owner, I added the service `fix-permission`, which just starts up once, and assignes the pasthes to the `${RUN_USER}` by running `${ALLOW_USER}` (which is defined as `"chown -R ${RUN_USER}:${RUN_GROUP}"` in [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch)).
-
-##### The Configuration File
-
-Secrets, such as API keys or database passwords are not defined here, but injected through environment variables.
-
-Check this `docker-compose.yaml` file:
+`FORWARD` and `REDIRECT` each contain one rule per line, `<source> <target>`:
 
 ```yaml
-version: '3.5'
+environment:
+  FORWARD: |-
+    localhost      localserver:8080
+    example.com    backend:4000
+  REDIRECT: |-
+    old.example.com   example.com
+```
+
+### Configuration file
+
+`/config/reverse-proxy.conf` holds one rule per line, with the verb as the first
+word (blank lines and `#` comments are ignored):
+
+```
+forward   localhost     localserver:8080
+forward   example.com   backend:4000
+redirect  old.example.com   example.com
+```
+
+### Source and target format
+
+- **source**: the externally visible domain name with an optional base path,
+  `domain` or `domain/base`. Requests to `www.<domain>` are redirected to
+  `<domain>`.
+- **target** of a forward: an internal host with optional scheme, port and base
+  path, `host`, `host:port` or `[scheme://]host:port/base`. The target is
+  usually not public, only reachable inside the cloud.
+- **target** of a redirect: the public URL to redirect to.
+
+An unconfigured host answers with the *not found* page; a configured forward
+whose backend is unreachable answers with the *maintenance* page.
+
+### Basic authentication
+
+To protect a forwarded host with HTTP basic-auth, mount a htpasswd file at
+`/etc/nginx/basic-auth/<host>.htpasswd` (or `/etc/nginx/basic-auth/<host>/<base>.htpasswd`
+for a specific base path). When present, `run-nginx` wires it up automatically.
+The realm can be overridden with the environment variable `BASIC_AUTH_REALM`.
+
+### Other environment variables
+
+- `PROXY_REDIRECT_OFF`: whitespace separated list of `host[/base]` for which
+  nginx `proxy_redirect` is turned off.
+
+## Ports
+
+The reverse proxy listens on port `8080` for HTTP and `8443` for HTTPS. Map them
+to the public ports in your compose file, e.g. `80:8080` and `443:8443`.
+
+## Migration from the previous versions
+
+- The old versions passed rules **on the command line / in a file** with a `--`
+  prefix (`--forward …`, `--redirect …`). The prefix is **gone**: in the file,
+  write `forward …` / `redirect …` without `--`.
+- The intermediate version configured the rules as **build arguments** and baked
+  them into the image. Configuration is now done again **at runtime** via the
+  `FORWARD`/`REDIRECT` environment variables and/or the `/config/reverse-proxy.conf`
+  file — no image rebuild is needed to change the routing.
+- The container now boots via its default command; a `command: /start.sh`
+  override from an old deployment must be removed.
+- Ports are `8080`/`8443` inside the container — map `80:8080` and `443:8443`.
+
+## Example
+
+A minimal HTTP-only stack (SSL omitted for simplicity):
+
+```yaml
+services:
+  reverse-proxy:
+    image: mwaeckerlin/reverse-proxy
+    ports:
+      - 8080:8080
+    environment:
+      FORWARD: |-
+        localhost   localserver:8080
+        demo        demo:8080
+        doesnotrun  doesnotrun:8080
+      REDIRECT: |-
+        extern      example.com
+
+  localserver:
+    image: mwaeckerlin/nginx
+  demo:
+    image: mwaeckerlin/nginx
+  # not a web server -> the maintenance page is shown for `doesnotrun`
+  doesnotrun:
+    image: mwaeckerlin/very-base
+    command: ["sleep", "infinity"]
+```
+
+Requests to `localhost` and `demo` are forwarded to the respective backends,
+`extern` is permanently redirected to `example.com`, and `doesnotrun` shows the
+maintenance page.
+
+## SSL with Let's Encrypt
+
+[mwaeckerlin/reverse-proxy](https://github.com/mwaeckerlin/reverse-proxy) and
+[mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) share the
+volumes for the `/acme` challenge and the certificates in `/etc/letsencrypt`.
+When a certificate appears or is renewed under `/etc/letsencrypt/live`, the
+reverse proxy reloads and serves it. Restart
+[mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) at most
+once per hour, because too many failed attempts block the account.
+
+### DH parameters
+
+The Diffie-Hellman parameters are generated at the first container start (not
+baked into the image) with `DHPARAM` bits (default `4096`) and kept on
+`DHPARAM_FILE` (default `/etc/letsencrypt/dhparam.pem`), so they are generated
+only once. The first start therefore takes a while; provide a ready-made file at
+`DHPARAM_FILE` (or a smaller `DHPARAM`) to skip or speed up generation.
+
+Because Let's Encrypt must write into `/etc/letsencrypt` and `/acme`, but
+volumes created by `docker compose` cannot be assigned an owner, the service
+`fix-permission` starts up once and assigns the paths to `${RUN_USER}` by
+running `${ALLOW_USER}` (defined as `chown -R ${RUN_USER}:${RUN_GROUP}` in
+[mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch)).
+
+```yaml
 services:
   fix-permission:
     image: mwaeckerlin/very-base
@@ -117,18 +180,15 @@ services:
         target: /acme
 
   reverse-proxy:
-    image: 1845345354.dkr.ecr.eu-central-2.amazonaws.com/reverse-proxy
-    build:
-      context: reverse-proxy
-      args:
-        DHPARAM: 4096
-        FORWARD: |-
-          example-service.example.com example-service:4000
+    image: mwaeckerlin/reverse-proxy
     depends_on:
       - fix-permission
     ports:
       - '80:8080'
       - '443:8443'
+    environment:
+      FORWARD: |-
+        example-service.example.com example-service:4000
     networks:
       - proxy-letsencrypt
       - proxy-example-service
@@ -164,54 +224,24 @@ services:
         delay: 1h
 
   example-service:
-    image: 1845345354.dkr.ecr.eu-central-2.amazonaws.com/example-service
-    depends_on:
-      - example-db
-    environment:
-      APIKEY:
-      APIHOST:
-      APISECRET:
-      DB_TYPE: postgresql
-      DB_NAME: database
-      DB_HOST: example-db
-      DB_USER: user
-      DB_PASSWORD:
-      DB_PORT: 5432
+    image: example-service
     networks:
       - proxy-example-service
-      - example-db-network
-    deploy:
-      restart_policy:
-        condition: on-failure
-
-  example-db:
-    image: postgres:15
-    environment:
-      POSTGRES_PASSWORD:
-      POSTGRES_USER: user
-      POSTGRES_DB: database
-    volumes:
-      - type: volume
-        source: db-volume
-        target: /var/lib/postgresql/data
-    networks:
-      - example-db-network
-    deploy:
-      restart_policy:
-        condition: on-failure
 
 volumes:
-  db-volume: {}
   certificates: {}
   acme: {}
 networks:
-  example-db-network:
-    driver_opts:
-      encrypted: 1
   proxy-letsencrypt:
-    driver_opts:
-      encrypted: 1
   proxy-example-service:
-    driver_opts:
-      encrypted: 1
+```
+
+## Tests
+
+The image ships an end-to-end test suite driven by pytest against a real
+`docker compose` stack (`tests/e2e/`), plus a headless-image contract check
+(`tests/image-contract.sh`). Run everything with:
+
+```bash
+npm test
 ```

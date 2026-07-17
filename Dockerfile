@@ -1,10 +1,16 @@
 FROM mwaeckerlin/very-base AS build
 WORKDIR /build
-RUN mkdir -p /root/etc/nginx
-RUN $PKG_INSTALL inotify-tools openssl g++ nginx
-ENV EXE "/usr/bin/run-nginx /usr/bin/inotifywait"
+# Configuration lives in the template: the running container renders /etc/nginx
+# from /etc/nginx.template with environment substitution at start (run-nginx),
+# so our additions must land in the template too.
+RUN mkdir -p /root/etc/nginx.template
+RUN $PKG_INSTALL inotify-tools openssl g++
+# openssl ships in the image so run-nginx can generate the DH parameters at
+# start (not baked at build): high bits by default, generated once and kept on
+# the persistent DHPARAM_FILE.
+ENV EXE "/usr/bin/run-nginx /usr/bin/inotifywait /usr/bin/openssl"
 COPY run-nginx.cpp /build
-RUN g++ -o /usr/bin/run-nginx run-nginx.cpp
+RUN g++ -std=c++17 -o /usr/bin/run-nginx run-nginx.cpp
 
 # install binaries to /root
 RUN tar cph $EXE \
@@ -13,31 +19,17 @@ RUN tar cph $EXE \
     done 2> /dev/null) 2> /dev/null \
     | tar xpC /root/
 
-# make sure to change the following to at least 4096. 512 is just a dummy
-# must be rebuilt before you release your configured image
-ARG DHPARAM=512
-RUN openssl dhparam -out /root/etc/nginx/dhparam.pem ${DHPARAM}
-
-ARG FORWARD
-ARG REDIRECT
-ARG SSL
-COPY nginx-configure.sh .
-RUN ./nginx-configure.sh
-RUN mv /etc/nginx/server.d /root/etc/nginx/
-RUN mkdir -p /root/etc/letsencrypt/live
+# Watch targets that must exist even when nothing is mounted over them:
+# /config for the optional configuration file, letsencrypt/live for certificates.
+RUN mkdir -p /root/config /root/etc/letsencrypt/live
 
 RUN test -e /root/usr/bin/inotifywait
 RUN test -e /root/usr/bin/run-nginx
+RUN test -e /root/usr/bin/openssl
 
 FROM mwaeckerlin/nginx AS assemble
 COPY --from=build /root /
-COPY --chown=root conf/ /etc/nginx/
-
-FROM mwaeckerlin/very-base as test
-RUN $PKG_INSTALL nginx
-USER $RUN_USER
-COPY --from=assemble / /
-RUN /usr/sbin/nginx -t
+COPY --chown=root conf/ /etc/nginx.template/
 
 FROM mwaeckerlin/scratch
 ENV CONTAINERNAME "reverse-proxy"

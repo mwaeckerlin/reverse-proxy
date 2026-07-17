@@ -1,0 +1,3 @@
+[submodule "letsencrypt"]
+	path = letsencrypt
+	url = git@github.com:mwaeckerlin/letsencrypt.git
