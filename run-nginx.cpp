@@ -221,8 +221,27 @@ static vector<Rule> collectRules() {
 
 // -------------------------------------------------- server generation ------
 
+// The realm is rendered between quotes into auth_basic: a quote, backslash,
+// semicolon or line break would end the directive and could switch the
+// protection off, so such a realm is ignored with a warning and the host
+// name serves as realm instead.
+static string realmFromEnvironment() {
+  static const string realm = [] {
+    string value = env("BASIC_AUTH_REALM");
+    for (unsigned char c : value)
+      if (!isalnum(c) && c != ' ' && c != '.' && c != '_' && c != ':' && c != '/' &&
+          c != '-' && c != '@' && c != '(' && c != ')' && c != ',') {
+        cerr << "**** WARNING: ignoring invalid BASIC_AUTH_REALM, using the host name"
+             << endl;
+        return string();
+      }
+    return value;
+  }();
+  return realm;
+}
+
 static string basicAuth(const string &fromurl, const string &frombase) {
-  string realm = env("BASIC_AUTH_REALM");
+  string realm = realmFromEnvironment();
   string base = string(BASIC_AUTH_DIR) + "/" + fromurl + "/" + frombase + ".htpasswd";
   if (fs::exists(base)) {
     string r = realm.empty() ? fromurl + "/" + frombase : realm;

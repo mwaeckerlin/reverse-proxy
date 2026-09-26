@@ -28,6 +28,7 @@ x-proxy: &proxy
     - demo
     - test
     - doesnotrun
+    - redirector
 
 # DH parameters are generated at start; a tiny key keeps these HTTP-only tests
 # fast (they never terminate TLS, so the size is irrelevant here).
@@ -52,12 +53,17 @@ services:
         doesnotrun doesnotrun:8080
         pathhost/app localserver:8080
         plain plain:8080
+        redirect-on redirector:8080
+        redirect-off redirector:8080
         bad{host localserver:8080
         after.invalid localserver:8080
       REDIRECT: |-
         extern example.com
         redirbase/old example.com
         bad;redir example.com
+      # the backend's own redirects are rewritten to the public host, except
+      # for the hosts listed here
+      PROXY_REDIRECT_OFF: redirect-off
 
   # --- configuration via a mounted file only -----------------------------
   revproxy-file:
@@ -83,6 +89,29 @@ services:
     <<: *proxy
     environment:
       <<: *dhparam
+      FORWARD: |-
+        secret localserver:8080
+    volumes:
+      - ./basic-auth:/etc/nginx/basic-auth:ro
+
+  # --- the same with an own realm name -------------------------------------
+  revproxy-auth-realm:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      BASIC_AUTH_REALM: Team Area
+      FORWARD: |-
+        secret localserver:8080
+    volumes:
+      - ./basic-auth:/etc/nginx/basic-auth:ro
+
+  # --- a realm that tries to switch the protection off by closing the quote;
+  #     it must be refused with a warning, the protection stays -------------
+  revproxy-auth-badrealm:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      BASIC_AUTH_REALM: 'x"; auth_basic off; #'
       FORWARD: |-
         secret localserver:8080
     volumes:
@@ -123,6 +152,22 @@ services:
     command: ["python", "-m", "http.server", "8080"]
     working_dir: /srv
 
+  # Backend that answers every request with a redirect to its own internal
+  # address, the way an application behind a proxy often does.
+  redirector:
+    image: python:3.12-slim
+    command:
+      - python
+      - -c
+      - |
+        import http.server
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header('Location', 'http://redirector:8080/landed/')
+                self.end_headers()
+        http.server.HTTPServer(('', 8080), H).serve_forever()
+
   # Just a dummy, not a web server: nothing listens, so the proxy answers with
   # its 502 maintenance page.
   doesnotrun:
@@ -140,13 +185,17 @@ services:
       - revproxy-file
       - revproxy-mixed
       - revproxy-auth
+      - revproxy-auth-realm
+      - revproxy-auth-badrealm
       - revproxy-reload
     environment:
-      REVPROXY_URL: http://reverse-proxy:8080
-      FILE_URL:     http://revproxy-file:8080
-      MIXED_URL:    http://revproxy-mixed:8080
-      AUTH_URL:     http://revproxy-auth:8080
-      RELOAD_URL:   http://revproxy-reload:8080
+      REVPROXY_URL:   http://reverse-proxy:8080
+      FILE_URL:       http://revproxy-file:8080
+      MIXED_URL:      http://revproxy-mixed:8080
+      AUTH_URL:       http://revproxy-auth:8080
+      REALM_URL:      http://revproxy-auth-realm:8080
+      BADREALM_URL:   http://revproxy-auth-badrealm:8080
+      RELOAD_URL:     http://revproxy-reload:8080
     volumes:
       - reloadcfg:/reload-config
     command: ["pytest", "-v", "--tb=short"]

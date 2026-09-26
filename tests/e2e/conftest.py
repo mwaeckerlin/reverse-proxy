@@ -18,9 +18,11 @@ REVPROXY_URL = os.environ.get("REVPROXY_URL", "http://reverse-proxy:8080")
 FILE_URL     = os.environ.get("FILE_URL",     "http://revproxy-file:8080")
 MIXED_URL    = os.environ.get("MIXED_URL",    "http://revproxy-mixed:8080")
 AUTH_URL     = os.environ.get("AUTH_URL",     "http://revproxy-auth:8080")
+REALM_URL    = os.environ.get("REALM_URL",    "http://revproxy-auth-realm:8080")
+BADREALM_URL = os.environ.get("BADREALM_URL", "http://revproxy-auth-badrealm:8080")
 RELOAD_URL   = os.environ.get("RELOAD_URL",   "http://revproxy-reload:8080")
 
-ALL_PROXIES = [REVPROXY_URL, FILE_URL, MIXED_URL, AUTH_URL, RELOAD_URL]
+ALL_PROXIES = [REVPROXY_URL, FILE_URL, MIXED_URL, AUTH_URL, REALM_URL, BADREALM_URL, RELOAD_URL]
 
 
 # ----------------------------------------------------------- Helpers -------

@@ -18,8 +18,11 @@ def test_valid_rule_after_invalid_is_served():
 
 
 def test_invalid_forward_creates_no_route():
+    # nginx refuses the invalid host name itself with 400 before any server
+    # block is chosen; either way no backend answers
     r = get("bad{host", "/")
-    assert r.status_code == 404
+    assert r.status_code in (400, 404)
+    assert "LOCALSERVER-OK" not in r.text
 
 
 def test_other_hosts_unaffected_by_invalid_rules():
