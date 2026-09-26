@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-09-26 **2.0.3**
+    - The test suite installs its Python packages without a warning
+
 - 2026-09-26 **2.0.2**
     - Security: a realm name in `BASIC_AUTH_REALM` that closed the quote could switch the password protection off; such a realm is now ignored with a warning and the host name serves as realm
     - The image is published for amd64 and arm64 under one tag, built and published automatically on every change and every week
