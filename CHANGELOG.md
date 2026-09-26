@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-09-26 **2.0.4**
+    - Includes letsencrypt 2.0.3, whose end to end test no longer fails when the second certificate is issued a moment later
+
 - 2026-09-26 **2.0.3**
     - The test suite installs its Python packages without a warning
 

@@ -1,6 +1,6 @@
 {
   "name": "@mwaeckerlin/reverse-proxy",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "scripts": {
     "build": "docker compose build",
     "start": "docker compose up --build --force-recreate --remove-orphans",
