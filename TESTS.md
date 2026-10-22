@@ -22,11 +22,19 @@ pytest runs against the real compose stack of `tests/e2e/`.
 - **F10** `test_basic_auth.py` › test_no_credentials_is_unauthorized, test_wrong_credentials_is_unauthorized, test_correct_credentials_pass_through — the protection works.
 - **F10** `test_basic_auth.py` › test_default_realm_is_the_host, test_realm_from_environment — the realm is the host, or `BASIC_AUTH_REALM`.
 - **F10** `test_basic_auth.py` › test_hostile_realm_keeps_the_protection — a realm that closes the quote is ignored and the host stays protected (regression: `x"; auth_basic off; #` switched the protection off).
+- **F18** `test_basic_auth_env.py` › test_env_entry_requires_credentials, test_env_entry_refuses_wrong_password, test_env_entry_passes_correct_credentials — a `BASIC_AUTH` entry protects the host with the host as realm; the invalid `../escape` entry before it is ignored.
+- **F18** `test_basic_auth_env.py` › test_env_entry_for_base_path_wins_over_host_entry — the entry of `envsecret/admin` decides for that path, the host's user is refused there.
+- **F18** `test_basic_auth_env.py` › test_secret_file_entry_protects_host — an entry of `BASIC_AUTH_FILE` protects its host.
+- **F18** `test_basic_auth_env.py` › test_mounted_file_wins_over_env_entry — with a mounted htpasswd and an entry for the same host, only the mounted user passes.
 - **F11** `test_proxy_redirect.py` › test_backend_redirect_is_rewritten_to_the_public_host, test_proxy_redirect_off_passes_the_backend_address — rewriting and `PROXY_REDIRECT_OFF`.
 - **F12** `test_headers.py` › test_headers_added_for_headerless_backend, test_headers_not_duplicated_for_backend_with_own_headers — the headers, exactly once.
-- **F12** `tests/e2e-https/test_https.py` › test_https_sets_hsts_header — HSTS on HTTPS.
+- **F12** `tests/e2e-https/test_https.py` › test_https_sets_hsts_header, test_https_sets_hsts_header_on_own_responses — HSTS for one year on forwarded responses and on the proxy's own.
+- **F12** `tests/e2e-https/test_https.py` › test_hsts_max_age_from_environment — a second proxy with `HSTS_MAX_AGE=600` sends that lifetime on forwarded and own responses.
 - **F14** `test_startup.py` › test_proxy_boots_via_default_command — every proxy of the stack generates its DH parameters (`DHPARAM=512`, no file) and boots.
 - **F15** `test_startup.py` › test_proxy_boots_via_default_command — the container boots without a command override.
+- **F19** `test_limits.py` › test_body_without_limit_is_forwarded, test_body_over_limit_is_refused — no limit by default, 413 over `CLIENT_MAX_BODY_SIZE=1k`.
+- **F19** `test_limits.py` › test_slow_backend_within_default_read_timeout, test_slow_backend_over_read_timeout — a backend that answers after three seconds reaches the client by default, and gets the 504 page within three seconds with `PROXY_READ_TIMEOUT=1s`.
+- **F19** `test_limits.py` › test_invalid_value_cannot_inject_a_directive — a `PROXY_SEND_TIMEOUT` carrying `; return 200 injected` neither stops the proxy nor answers for the backend.
 
 ## End-to-end HTTPS
 
@@ -38,6 +46,8 @@ pytest runs against the stack of `tests/e2e-https/`, which brings its own ACME s
 ## Image contract
 
 - **F16** `tests/image-contract.sh` › no sh, no bash, no busybox, no perl — the image is headless.
+- **F12, F19** `tests/config-contract.sh` › settings_default, settings_from_environment — `nginx -T` in the running container shows the defaults, and every value passed with `-e`.
+- **F12, F19** `tests/config-contract.sh` › invalid_settings_fall_back, invalid_settings_not_injected — invalid values are replaced by the default, named in a warning, and never reach the configuration.
 
 ## Workflow contract
 

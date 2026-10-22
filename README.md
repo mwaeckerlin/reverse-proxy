@@ -59,15 +59,43 @@ An unconfigured host answers with the *not found* page; a configured forward who
 
 To protect a forwarded host with HTTP basic-auth, mount a htpasswd file at `/etc/nginx/basic-auth/<host>.htpasswd` (or `/etc/nginx/basic-auth/<host>/<base>.htpasswd` for a specific base path). When present, `run-nginx` wires it up automatically. The realm is the host name and can be overridden with the environment variable `BASIC_AUTH_REALM`. The realm may contain letters, digits, spaces and `._:/-@(),`; any other character could end the directive, so such a realm is ignored with a warning in the container log and the host name is used.
 
+Without a mounted file, the environment variable `BASIC_AUTH` holds one entry per line, `<host>[/<base>] <user>:<password hash>`, in the format of a htpasswd line; several lines with the same host give several users. `BASIC_AUTH_FILE` names a file with the same content, such as a docker secret, and its entries are added to those of `BASIC_AUTH`. An entry for a base path wins over the entry of its host; for the same host and base a mounted htpasswd file wins over the entries. Create the hash with `htpasswd -nB <user>`, and write every `$` of the hash as `$$` in a compose file:
+
+```yaml
+environment:
+  BASIC_AUTH: |-
+    example.com        alice:$$2y$$05$$...
+    example.com/admin  bob:$$2y$$05$$...
+```
+
+An entry whose host has other characters than letters, digits and `._:/-`, contains `..`, or whose second word is not `<user>:<hash>` is ignored with a warning in the container log that names the host and never the hash.
+
 Basic authentication protects only over HTTPS. Until the certificate exists (or with `SSL=off`) the host is served over plain HTTP and credentials would travel unencrypted, so protect a host once it is served over HTTPS.
 
 ### Other environment variables
 
 - `PROXY_REDIRECT_OFF`: whitespace separated list of `host[/base]` for which nginx `proxy_redirect` is turned off. By default, a redirect of the backend to its internal address (`Location: http://backend:8080/x/`) is rewritten to the public host (`http://<host>:8080/x/`); for the listed entries the header passes unchanged.
+- `CLIENT_MAX_BODY_SIZE`: largest request body, default `0` for no limit; a larger body answers 413.
+- `CLIENT_BODY_BUFFER_SIZE`: memory buffer for a request body before nginx writes it to a temporary file, default `128k`.
+- `PROXY_BUFFERS`: number and size of the buffers for a backend response, as nginx `proxy_buffers`, default `32 4k`.
+- `PROXY_CONNECT_TIMEOUT`: time to connect to a backend, default `1200` seconds.
+- `PROXY_READ_TIMEOUT`: time a backend may stay silent while answering, default `86400` seconds; a backend that takes longer gets the 504 page.
+- `PROXY_SEND_TIMEOUT`: time a backend may take to read the forwarded request, default `1200` seconds.
+- `SEND_TIMEOUT`: time a client may take to read the response, default `1200` seconds.
+- `WORKER_CONNECTIONS`: connections per nginx worker, default `1024`.
+- `KEEPALIVE_TIMEOUT`: how long an idle client connection stays open, default `65` seconds.
+- `HSTS_MAX_AGE`: lifetime of `Strict-Transport-Security` in seconds, default `31536000` (one year); `0` tells browsers to forget the HSTS of the host.
+
+Times are seconds, or carry an nginx unit (`ms`, `s`, `m`, `h`, `d`, `w`, `M`, `y`); sizes are bytes, or carry `k`, `m` or `g`. An empty variable takes the default; a value of another form is replaced by the default with a warning in the container log, so it can neither stop the proxy nor add a directive to its configuration.
+
+### Security trade-offs
+
+- **No request size limit** (`CLIENT_MAX_BODY_SIZE=0`): uploads of any size reach the backend, as cloud applications need it; a client can fill the temporary space of the proxy. Set a limit where no backend takes large uploads.
+- **Long timeouts** (`PROXY_READ_TIMEOUT=86400`, `PROXY_CONNECT_TIMEOUT`, `PROXY_SEND_TIMEOUT` and `SEND_TIMEOUT` `1200`): long running requests and WebSockets stay open for a day; slow clients and backends hold connections that long. Lower them where no backend needs it.
 
 ### Security headers
 
-The proxy is authoritative for two response headers on forwarded requests: `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` are set exactly once, replacing any backend copy. HTTPS responses carry `Strict-Transport-Security` with a lifetime of one year.
+The proxy is authoritative for two response headers on forwarded requests: `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` are set exactly once, replacing any backend copy. HTTPS responses carry `Strict-Transport-Security` with the lifetime `HSTS_MAX_AGE`, one year by default.
 
 ## Ports
 
@@ -195,8 +223,8 @@ networks:
 
 ## Tests
 
-The image ships an end-to-end test suite driven by pytest against a real `docker compose` stack (`tests/e2e/`), an HTTPS suite with a local ACME server (`tests/e2e-https/`), a headless-image contract check (`tests/image-contract.sh`) and the check of the feature register ([FEATURES.md](FEATURES.md), [TESTS.md](TESTS.md)). The image is built and published for `linux/amd64` and `linux/arm64` by the reusable workflow of [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch#publishing-on-docker-hub). Run everything with:
+The image ships an end-to-end test suite driven by pytest against a real `docker compose` stack (`tests/e2e/`), an HTTPS suite with a local ACME server (`tests/e2e-https/`), a headless-image contract check (`tests/image-contract.sh`), the check of the configuration rendered from the environment (`tests/config-contract.sh`) and the check of the feature register ([FEATURES.md](FEATURES.md), [TESTS.md](TESTS.md)). The image is built and published for `linux/amd64` and `linux/arm64` by the reusable workflow of [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch#publishing-on-docker-hub). Run everything with:
 
 ```bash
-$ npm test
+npm test
 ```

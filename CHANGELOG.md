@@ -1,5 +1,12 @@
 # Changelog
 
+- 2026-10-22 **2.0.5**
+    - Basic authentication without a mounted file: `BASIC_AUTH` holds `<host>[/<base>] <user>:<password hash>` per line, `BASIC_AUTH_FILE` names a file with the same content such as a docker secret; mounted htpasswd files keep working and win for the same host
+    - Request size, buffers and timeouts are set at container start: `CLIENT_MAX_BODY_SIZE`, `CLIENT_BODY_BUFFER_SIZE`, `PROXY_BUFFERS`, `PROXY_CONNECT_TIMEOUT`, `PROXY_READ_TIMEOUT`, `PROXY_SEND_TIMEOUT`, `SEND_TIMEOUT`, `WORKER_CONNECTIONS` and `KEEPALIVE_TIMEOUT`, each with the value used so far as default
+    - `HSTS_MAX_AGE` sets the lifetime of `Strict-Transport-Security`, default one year as before
+    - An invalid value of these settings is replaced by its default with a warning, so it can neither stop the proxy nor add a directive
+    - The proxy starts with the newest mwaeckerlin/nginx, whose configuration expects `WORKER_CONNECTIONS`, `CLIENT_MAX_BODY_SIZE` and `KEEPALIVE_TIMEOUT`
+
 - 2026-09-26 **2.0.4**
     - Includes letsencrypt 2.0.3, whose end to end test no longer fails when the second certificate is issued a moment later
 

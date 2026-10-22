@@ -1,6 +1,6 @@
 {
   "name": "@mwaeckerlin/reverse-proxy",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "scripts": {
     "build": "docker compose build",
     "start": "docker compose up --build --force-recreate --remove-orphans",
@@ -8,9 +8,10 @@
     "start:dev": "docker compose up --build --force-recreate --remove-orphans",
     "stop": "docker compose down",
     "deploy": "docker compose push reverse-proxy",
-    "test": "npm run test:docs && npm run test:image && npm run test:e2e && npm run test:e2e:https",
+    "test": "npm run test:docs && npm run test:image && npm run test:config && npm run test:e2e && npm run test:e2e:https",
     "test:docs": "bash tests/docs-contract.sh",
     "test:image": "npm run build && bash tests/image-contract.sh mwaeckerlin/reverse-proxy",
+    "test:config": "bash tests/config-contract.sh mwaeckerlin/reverse-proxy",
     "test:e2e": "bash tests/run-e2e.sh",
     "test:e2e:https": "bash tests/run-https-e2e.sh"
   }

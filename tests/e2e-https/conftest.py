@@ -10,6 +10,7 @@ import requests
 DOMAIN    = os.environ.get("DOMAIN", "secure.example.com")
 HTTP_URL  = os.environ.get("HTTP_URL", "http://secure.example.com:8080")
 HTTPS_URL = os.environ.get("HTTPS_URL", "https://secure.example.com:8443")
+HSTS_URL  = os.environ.get("HSTS_URL", "https://hsts.example.com:8443")
 
 
 def http_get(path: str = "/", allow_redirects: bool = False, **kwargs):
@@ -17,10 +18,10 @@ def http_get(path: str = "/", allow_redirects: bool = False, **kwargs):
                         timeout=10, **kwargs)
 
 
-def https_get(path: str = "/", **kwargs):
+def https_get(path: str = "/", base: str = HTTPS_URL, **kwargs):
     # Pebble's chain is not trusted by the system; we verify the certificate
     # explicitly in the tests, so the request itself skips verification.
-    return requests.get(HTTPS_URL + path, verify=False, timeout=10, **kwargs)
+    return requests.get(base + path, verify=False, timeout=10, **kwargs)
 
 
 def peer_certificate_der(host: str = DOMAIN, port: int = 8443) -> bytes:

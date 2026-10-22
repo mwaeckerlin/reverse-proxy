@@ -29,6 +29,7 @@ x-proxy: &proxy
     - test
     - doesnotrun
     - redirector
+    - slow
 
 # DH parameters are generated at start; a tiny key keeps these HTTP-only tests
 # fast (they never terminate TLS, so the size is irrelevant here).
@@ -55,6 +56,7 @@ services:
         plain plain:8080
         redirect-on redirector:8080
         redirect-off redirector:8080
+        slow slow:8080
         bad{host localserver:8080
         after.invalid localserver:8080
       REDIRECT: |-
@@ -117,6 +119,43 @@ services:
     volumes:
       - ./basic-auth:/etc/nginx/basic-auth:ro
 
+  # --- basic-auth from BASIC_AUTH and BASIC_AUTH_FILE (password secretpass
+  #     for every user); the first entry tries to leave the directory and must
+  #     be ignored, mixedauth also has a mounted htpasswd, which wins --------
+  revproxy-auth-env:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      FORWARD: |-
+        envsecret localserver:8080
+        envsecret/admin localserver:8080
+        filesecret localserver:8080
+        mixedauth localserver:8080
+      BASIC_AUTH: |-
+        ../escape envuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/
+        envsecret envuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/
+        envsecret/admin adminuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/
+        mixedauth envuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/
+      BASIC_AUTH_FILE: /run/basic-auth
+    configs:
+      - source: basic-auth-file
+        target: /run/basic-auth
+      - source: mixedauth-htpasswd
+        target: /etc/nginx/basic-auth/mixedauth.htpasswd
+
+  # --- limits and timeouts from the environment; PROXY_SEND_TIMEOUT tries to
+  #     inject a directive and must fall back to its default ----------------
+  revproxy-limits:
+    <<: *proxy
+    environment:
+      <<: *dhparam
+      CLIENT_MAX_BODY_SIZE: 1k
+      PROXY_READ_TIMEOUT: 1s
+      PROXY_SEND_TIMEOUT: "5s; return 200 injected"
+      FORWARD: |-
+        localhost localserver:8080
+        slow slow:8080
+
   # --- live reload: configuration file on a shared volume, written by the
   #     test-runner at runtime to prove the file watch reloads nginx --------
   revproxy-reload:
@@ -168,6 +207,25 @@ services:
                 self.end_headers()
         http.server.HTTPServer(('', 8080), H).serve_forever()
 
+  # Backend that answers after three seconds, longer than the read timeout of
+  # revproxy-limits and shorter than the default.
+  slow:
+    image: python:3.12-slim
+    command:
+      - python
+      - -c
+      - |
+        import http.server, time
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                time.sleep(3)
+                body = b'SLOW-OK'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        http.server.ThreadingHTTPServer(('', 8080), H).serve_forever()
+
   # Just a dummy, not a web server: nothing listens, so the proxy answers with
   # its 502 maintenance page.
   doesnotrun:
@@ -187,6 +245,8 @@ services:
       - revproxy-auth
       - revproxy-auth-realm
       - revproxy-auth-badrealm
+      - revproxy-auth-env
+      - revproxy-limits
       - revproxy-reload
     environment:
       REVPROXY_URL:   http://reverse-proxy:8080
@@ -195,6 +255,8 @@ services:
       AUTH_URL:       http://revproxy-auth:8080
       REALM_URL:      http://revproxy-auth-realm:8080
       BADREALM_URL:   http://revproxy-auth-badrealm:8080
+      AUTH_ENV_URL:   http://revproxy-auth-env:8080
+      LIMITS_URL:     http://revproxy-limits:8080
       RELOAD_URL:     http://revproxy-reload:8080
     volumes:
       - reloadcfg:/reload-config
@@ -202,3 +264,11 @@ services:
 
 volumes:
   reloadcfg:
+
+configs:
+  basic-auth-file:
+    content: |
+      filesecret fileuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/
+  mixedauth-htpasswd:
+    content: |
+      authuser:$$apr1$$Xy9pQ2mn$$pYU9MCeo8MzT0F8vO5u3Q/

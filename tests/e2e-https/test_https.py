@@ -2,7 +2,7 @@
 mwaeckerlin/letsencrypt from the local Pebble ACME test server, and switches the
 domain from HTTP to HTTPS once the certificate appears (certificate watch).
 """
-from conftest import DOMAIN, https_get, http_get, peer_certificate_der, wait_until
+from conftest import DOMAIN, HSTS_URL, https_get, http_get, peer_certificate_der, wait_until
 
 from cryptography import x509
 from cryptography.x509.oid import ExtensionOID, NameOID
@@ -48,6 +48,27 @@ def test_https_sets_hsts_header():
     assert wait_until(_https_ok) is not None
     r = https_get("/")
     assert r.headers.get("Strict-Transport-Security") == "max-age=31536000"
+
+
+def test_https_sets_hsts_header_on_own_responses():
+    # /.well-known is answered by the proxy itself, with the server-level header.
+    assert wait_until(_https_ok) is not None
+    r = https_get("/.well-known/nothing")
+    assert r.headers.get("Strict-Transport-Security") == "max-age=31536000"
+
+
+def _hsts_proxy_ok():
+    r = https_get("/", base=HSTS_URL)
+    return r if r.status_code == 200 and "BACKEND-OK" in r.text else None
+
+
+def test_hsts_max_age_from_environment():
+    # reverse-proxy-hsts runs with HSTS_MAX_AGE=600, on forwarded and own responses.
+    r = wait_until(_hsts_proxy_ok)
+    assert r is not None, "HTTPS of hsts.example.com did not start in time"
+    assert r.headers.get("Strict-Transport-Security") == "max-age=600"
+    own = https_get("/.well-known/nothing", base=HSTS_URL)
+    assert own.headers.get("Strict-Transport-Security") == "max-age=600"
 
 
 def test_www_over_http_redirects_to_https():

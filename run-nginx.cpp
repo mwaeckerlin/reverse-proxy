@@ -35,6 +35,7 @@
 #include <signal.h>
 #include <cctype>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -53,6 +54,7 @@ static const char *TEMPLATE_DIR = "/etc/nginx.template";
 static const char *TARGET_DIR = "/etc/nginx";
 static const char *SERVER_DIR = "/etc/nginx/server.d";
 static const char *BASIC_AUTH_DIR = "/etc/nginx/basic-auth";
+static const char *BASIC_AUTH_ENV_DIR = "/etc/nginx/basic-auth-env";
 static const char *CONFIG_FILE = "/config/reverse-proxy.conf";
 static const char *WATCH_CERTS = "/etc/letsencrypt/live";
 static const char *WATCH_CONFIG = "/config";
@@ -74,6 +76,82 @@ static vector<string> tokens(const string &s) {
   while (in >> t)
     out.push_back(t);
   return out;
+}
+
+// ------------------------------------------------------------- settings ---
+// Values rendered into the template as ${NAME}. The first three belong to the
+// template of mwaeckerlin/nginx, whose environment the final stage does not
+// inherit. An invalid value is replaced by the default with a warning, so it can
+// neither break the configuration nor inject a directive.
+
+enum class Kind { Number, Size, Time, Buffers };
+
+struct Setting {
+  const char *name;
+  const char *def;
+  Kind kind;
+};
+
+static const Setting SETTINGS[] = {
+    {"WORKER_CONNECTIONS", "1024", Kind::Number},
+    {"KEEPALIVE_TIMEOUT", "65", Kind::Time},
+    {"CLIENT_MAX_BODY_SIZE", "0", Kind::Size},
+    {"CLIENT_BODY_BUFFER_SIZE", "128k", Kind::Size},
+    {"PROXY_BUFFERS", "32 4k", Kind::Buffers},
+    {"PROXY_CONNECT_TIMEOUT", "1200", Kind::Time},
+    {"PROXY_READ_TIMEOUT", "86400", Kind::Time},
+    {"PROXY_SEND_TIMEOUT", "1200", Kind::Time},
+    {"SEND_TIMEOUT", "1200", Kind::Time},
+    {"HSTS_MAX_AGE", "31536000", Kind::Number},
+};
+
+// Length of the leading run of digits.
+static size_t digits(const string &s, size_t from = 0) {
+  size_t i = from;
+  while (i < s.size() && isdigit(static_cast<unsigned char>(s[i])))
+    ++i;
+  return i - from;
+}
+
+static bool validSize(const string &s) {
+  size_t n = digits(s);
+  if (n == 0)
+    return false;
+  return n == s.size() || (n + 1 == s.size() && string("kKmMgG").find(s[n]) != string::npos);
+}
+
+static bool validValue(const string &s, Kind kind) {
+  size_t n = digits(s);
+  switch (kind) {
+  case Kind::Number:
+    return n > 0 && n == s.size();
+  case Kind::Size:
+    return validSize(s);
+  case Kind::Time: {
+    if (n == 0)
+      return false;
+    const string unit = s.substr(n);
+    for (const char *u : {"", "ms", "s", "m", "h", "d", "w", "M", "y"})
+      if (unit == u)
+        return true;
+    return false;
+  }
+  case Kind::Buffers:
+    return n > 0 && n + 1 < s.size() && s[n] == ' ' && validSize(s.substr(n + 1));
+  }
+  return false;
+}
+
+static void applySettings() {
+  for (const auto &setting : SETTINGS) {
+    const char *value = getenv(setting.name);
+    if (value && *value && validValue(value, setting.kind))
+      continue;
+    if (value && *value)
+      cerr << "**** WARNING: ignoring invalid " << setting.name << "=" << value
+           << ", using " << setting.def << endl;
+    setenv(setting.name, setting.def, 1);
+  }
 }
 
 // ------------------------------------------------ template substitution ---
@@ -240,20 +318,18 @@ static string realmFromEnvironment() {
   return realm;
 }
 
+// The more specific base path wins; at the same level a mounted file wins over
+// an entry of BASIC_AUTH.
 static string basicAuth(const string &fromurl, const string &frombase) {
-  string realm = realmFromEnvironment();
-  string base = string(BASIC_AUTH_DIR) + "/" + fromurl + "/" + frombase + ".htpasswd";
-  if (fs::exists(base)) {
-    string r = realm.empty() ? fromurl + "/" + frombase : realm;
-    return "    auth_basic \"" + r + "\";\n"
-           "    auth_basic_user_file " + base + ";\n";
-  }
-  string flat = string(BASIC_AUTH_DIR) + "/" + fromurl + ".htpasswd";
-  if (fs::exists(flat)) {
-    string r = realm.empty() ? fromurl : realm;
-    return "    auth_basic \"" + r + "\";\n"
-           "    auth_basic_user_file " + flat + ";\n";
-  }
+  const string realm = realmFromEnvironment();
+  const pair<string, string> levels[] = {
+      {"/" + fromurl + "/" + frombase + ".htpasswd", fromurl + "/" + frombase},
+      {"/" + fromurl + ".htpasswd", fromurl}};
+  for (const auto &[file, name] : levels)
+    for (const string dir : {BASIC_AUTH_DIR, BASIC_AUTH_ENV_DIR})
+      if (fs::exists(dir + file))
+        return "    auth_basic \"" + (realm.empty() ? name : realm) + "\";\n"
+               "    auth_basic_user_file " + dir + file + ";\n";
   return "";
 }
 
@@ -395,8 +471,7 @@ static string writeHTTPS(const string &server, const string &content) {
        "  http2 on;\n"
        "  server_name " << server << ";\n"
        "  set $port 8443;\n"
-       // One year — keep in sync with the map in conf/conf.d/hsts.conf.
-       "  add_header Strict-Transport-Security max-age=31536000 always;\n"
+       "  add_header Strict-Transport-Security max-age=" << env("HSTS_MAX_AGE") << " always;\n"
        "  ssl_certificate " << live << "/fullchain.pem;\n"
        "  ssl_certificate_key " << live << "/privkey.pem;\n"
        "  error_page 502 /502.html;\n"
@@ -421,6 +496,43 @@ static bool sslEnabled() { return env("SSL") != "off"; }
 static bool hasCertificate(const string &server) {
   return fs::exists("/etc/letsencrypt/live/" + server + "/fullchain.pem") &&
          fs::exists("/etc/letsencrypt/live/" + server + "/privkey.pem");
+}
+
+// BASIC_AUTH and the file named by BASIC_AUTH_FILE (a docker secret) hold one
+// entry per line, `<host>[/<base>] <user>:<password hash>`; the entries of one
+// host and base become one htpasswd file below BASIC_AUTH_ENV_DIR.
+static void writeBasicAuthFromEnvironment() {
+  error_code ec;
+  fs::remove_all(BASIC_AUTH_ENV_DIR, ec);
+  string entries = env("BASIC_AUTH");
+  const string file = env("BASIC_AUTH_FILE");
+  if (!file.empty()) {
+    ifstream in(file);
+    if (in)
+      entries += "\n" + string((istreambuf_iterator<char>(in)), istreambuf_iterator<char>());
+    else
+      cerr << "**** WARNING: cannot read BASIC_AUTH_FILE " << file << endl;
+  }
+  istringstream lines(entries);
+  string line;
+  while (getline(lines, line)) {
+    auto t = tokens(line.substr(0, line.find('#')));
+    if (t.empty())
+      continue;
+    const auto colon = t.size() == 2 ? t[1].find(':') : string::npos;
+    if (t.size() != 2 || !safeToken(t[0]) || t[0].find("..") != string::npos ||
+        colon == 0 || colon == string::npos || colon + 1 == t[1].size()) {
+      // the line may carry a password hash, so only the host is named
+      cerr << "**** WARNING: ignoring invalid BASIC_AUTH entry for " << t[0] << endl;
+      continue;
+    }
+    string fromurl, frombase;
+    splitSource(t[0], fromurl, frombase);
+    const fs::path path = fs::path(BASIC_AUTH_ENV_DIR + ("/" + fromurl) +
+                                   (frombase.empty() ? "" : "/" + frombase) + ".htpasswd");
+    fs::create_directories(path.parent_path());
+    ofstream(path, ios::app) << t[1] << "\n";
+  }
 }
 
 static void generateServers() {
@@ -489,7 +601,9 @@ static void ensureDhparam() {
 }
 
 static void rebuild() {
+  applySettings();
   renderTemplate();
+  writeBasicAuthFromEnvironment();
   ensureDhparam();
   generateServers();
 }

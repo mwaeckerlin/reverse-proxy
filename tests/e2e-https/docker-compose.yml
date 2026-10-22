@@ -36,7 +36,7 @@ services:
       fix-permission:
         condition: service_completed_successfully
     environment:
-      DOMAINS: "secure.example.com"
+      DOMAINS: "secure.example.com hsts.example.com"
       PREFIXES: ""
       EMAIL: "test@example.com"
       MODE: "webroot"
@@ -71,6 +71,28 @@ services:
       - certificates:/etc/letsencrypt
       - acme:/acme
 
+  # The same proxy with its own HSTS lifetime, on the second certificate.
+  reverse-proxy-hsts:
+    image: mwaeckerlin/reverse-proxy
+    depends_on:
+      backend:
+        condition: service_started
+      fix-permission:
+        condition: service_completed_successfully
+    environment:
+      FORWARD: |-
+        hsts.example.com backend:8080
+      DHPARAM_FILE: /dhparam.pem
+      HSTS_MAX_AGE: "600"
+    networks:
+      default:
+        aliases:
+          - hsts.example.com
+    volumes:
+      - ./dhparam.pem:/dhparam.pem:ro
+      - certificates:/etc/letsencrypt
+      - acme:/acme
+
   backend:
     image: mwaeckerlin/nginx
     environment:
@@ -92,11 +114,13 @@ services:
       - runner
     depends_on:
       - reverse-proxy
+      - reverse-proxy-hsts
       - letsencrypt
     environment:
       DOMAIN: secure.example.com
       HTTP_URL: http://secure.example.com:8080
       HTTPS_URL: https://secure.example.com:8443
+      HSTS_URL: https://hsts.example.com:8443
     command: ["pytest", "-v", "--tb=short"]
 
 volumes:
