@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-10-24 **2.0.7**
+    - The HTTPS test starts its second proxy after the first: both fill the empty certificate volume from the image, and two at once failed on the GitHub runner with «mkdir …/live: file exists»
+
 - 2026-10-23 **2.0.6**
     - Only the ACME challenge below `/.well-known/acme-challenge/` is answered by the proxy; every other path below `/.well-known/` reaches the backend, as Nextcloud needs it for `webfinger`, `nodeinfo`, `caldav` and `carddav`, which its administration reported as missing
 

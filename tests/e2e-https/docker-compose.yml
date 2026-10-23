@@ -74,7 +74,11 @@ services:
   # The same proxy with its own HSTS lifetime, on the second certificate.
   reverse-proxy-hsts:
     image: mwaeckerlin/reverse-proxy
+    # after reverse-proxy: both fill the empty certificates volume from the
+    # image, and two at once fail on «mkdir …/live: file exists»
     depends_on:
+      reverse-proxy:
+        condition: service_started
       backend:
         condition: service_started
       fix-permission:
