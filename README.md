@@ -2,7 +2,7 @@
 
 This is a reverse proxy that listens for HTTP and HTTPS on a single incoming port, then redirects according to the URL, namely the domain name and/or path, to any internal, not globally visible server. This is for use in a cloud, such as docker swarm or kubernetes.
 
-For using SSL, the service expects SSL-Certificates in `/etc/letsencrypt/live`, so you should run [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) in a separate container, redirect all requests to `/.well-known` to there and mount a common `/etc/letsencrypt/live`. If a file in `/etc/letsencrypt/live` changes, the reverse proxy is reloaded immediately and uses the new certificates.
+For using SSL, the service expects SSL-Certificates in `/etc/letsencrypt/live`, so you should run [mwaeckerlin/letsencrypt](https://github.com/mwaeckerlin/letsencrypt) in a separate container, share its challenge directory with the proxy at `/acme/.well-known/acme-challenge`, which the proxy serves under `/.well-known/acme-challenge/`, and mount a common `/etc/letsencrypt/live`. Every other path below `/.well-known/` goes to the backend, as Nextcloud needs it for `webfinger`, `nodeinfo`, `caldav` and `carddav`. If a file in `/etc/letsencrypt/live` changes, the reverse proxy is reloaded immediately and uses the new certificates.
 
 The image is highly optimized: there are only three executables in the image — `nginx` the webserver, `inotifywait` to watch for changes, and a small C++ program `run-nginx` that renders the configuration from the environment and the optional configuration file, starts nginx, and reloads it whenever the configuration or the certificates change. There is no shell in the container, so the image is around 10 MB including your configuration.
 

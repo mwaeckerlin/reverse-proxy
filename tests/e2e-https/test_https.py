@@ -51,9 +51,9 @@ def test_https_sets_hsts_header():
 
 
 def test_https_sets_hsts_header_on_own_responses():
-    # /.well-known is answered by the proxy itself, with the server-level header.
+    # The ACME challenge is answered by the proxy itself, with the server-level header.
     assert wait_until(_https_ok) is not None
-    r = https_get("/.well-known/nothing")
+    r = https_get("/.well-known/acme-challenge/nothing")
     assert r.headers.get("Strict-Transport-Security") == "max-age=31536000"
 
 
@@ -67,7 +67,7 @@ def test_hsts_max_age_from_environment():
     r = wait_until(_hsts_proxy_ok)
     assert r is not None, "HTTPS of hsts.example.com did not start in time"
     assert r.headers.get("Strict-Transport-Security") == "max-age=600"
-    own = https_get("/.well-known/nothing", base=HSTS_URL)
+    own = https_get("/.well-known/acme-challenge/nothing", base=HSTS_URL)
     assert own.headers.get("Strict-Transport-Security") == "max-age=600"
 
 

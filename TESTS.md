@@ -30,6 +30,7 @@ pytest runs against the real compose stack of `tests/e2e/`.
 - **F12** `test_headers.py` › test_headers_added_for_headerless_backend, test_headers_not_duplicated_for_backend_with_own_headers — the headers, exactly once.
 - **F12** `tests/e2e-https/test_https.py` › test_https_sets_hsts_header, test_https_sets_hsts_header_on_own_responses — HSTS for one year on forwarded responses and on the proxy's own.
 - **F12** `tests/e2e-https/test_https.py` › test_hsts_max_age_from_environment — a second proxy with `HSTS_MAX_AGE=600` sends that lifetime on forwarded and own responses.
+- **F13** `test_well_known.py` › test_well_known_reaches_the_backend, test_acme_challenge_is_answered_by_the_proxy — `/.well-known/webfinger` gets the backend's answer, the ACME challenge the proxy's own (regression: the proxy answered every `/.well-known` path itself, so Nextcloud never saw `webfinger`, `nodeinfo`, `caldav` and `carddav`).
 - **F14** `test_startup.py` › test_proxy_boots_via_default_command — every proxy of the stack generates its DH parameters (`DHPARAM=512`, no file) and boots.
 - **F15** `test_startup.py` › test_proxy_boots_via_default_command — the container boots without a command override.
 - **F19** `test_limits.py` › test_body_without_limit_is_forwarded, test_body_over_limit_is_refused — no limit by default, 413 over `CLIENT_MAX_BODY_SIZE=1k`.

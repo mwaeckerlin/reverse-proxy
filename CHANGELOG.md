@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-10-23 **2.0.6**
+    - Only the ACME challenge below `/.well-known/acme-challenge/` is answered by the proxy; every other path below `/.well-known/` reaches the backend, as Nextcloud needs it for `webfinger`, `nodeinfo`, `caldav` and `carddav`, which its administration reported as missing
+
 - 2026-10-22 **2.0.5**
     - Basic authentication without a mounted file: `BASIC_AUTH` holds `<host>[/<base>] <user>:<password hash>` per line, `BASIC_AUTH_FILE` names a file with the same content such as a docker secret; mounted htpasswd files keep working and win for the same host
     - Request size, buffers and timeouts are set at container start: `CLIENT_MAX_BODY_SIZE`, `CLIENT_BODY_BUFFER_SIZE`, `PROXY_BUFFERS`, `PROXY_CONNECT_TIMEOUT`, `PROXY_READ_TIMEOUT`, `PROXY_SEND_TIMEOUT`, `SEND_TIMEOUT`, `WORKER_CONNECTIONS` and `KEEPALIVE_TIMEOUT`, each with the value used so far as default

@@ -418,8 +418,8 @@ static string writeHTTP(const string &server, const string &content) {
   o << "server { # redirect www to non-www\n"
        "  listen 8080;\n"
        "  server_name www." << server << ";\n"
-       "  location /.well-known {\n"
-       "      alias /acme/.well-known;\n"
+       "  location /.well-known/acme-challenge/ {\n"
+       "      alias /acme/.well-known/acme-challenge/;\n"
        "  }\n"
        "  location / {\n"
        "    resolver 127.0.0.11:53 valid=30s;\n"
@@ -440,8 +440,8 @@ static string writeHTTP(const string &server, const string &content) {
        "    root /etc/nginx/error;\n"
        "  }\n"
     << content
-    << "  location /.well-known {\n"
-       "      alias /acme/.well-known;\n"
+    << "  location /.well-known/acme-challenge/ {\n"
+       "      alias /acme/.well-known/acme-challenge/;\n"
        "  }\n"
        "}\n";
   return o.str();
@@ -458,8 +458,8 @@ static string writeHTTPS(const string &server, const string &content) {
   o << "server { # redirect http to https\n"
        "  listen 8080;\n"
        "  server_name " << server << " www." << server << ";\n"
-       "  location /.well-known {\n"
-       "      alias /acme/.well-known;\n"
+       "  location /.well-known/acme-challenge/ {\n"
+       "      alias /acme/.well-known/acme-challenge/;\n"
        "  }\n"
        "  location / {\n"
        "    resolver 127.0.0.11:53 valid=30s;\n"
@@ -484,8 +484,8 @@ static string writeHTTPS(const string &server, const string &content) {
        "    root /etc/nginx/error;\n"
        "  }\n"
     << content
-    << "  location /.well-known {\n"
-       "      alias /acme/.well-known;\n"
+    << "  location /.well-known/acme-challenge/ {\n"
+       "      alias /acme/.well-known/acme-challenge/;\n"
        "  }\n"
        "}\n";
   return o.str();
